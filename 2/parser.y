@@ -9,11 +9,10 @@ extern char buf[256];           /* declared in lex.l */
 %}
 
 %token SEMICOLON      /* ; */
-%token UPPARE         /* ( */
-%token LOPARE         /* ) */
-%token UPBRAC         /* [ */
-%token LOBRAC         /* ] */
 %token COMMA          /* , */
+%token UPPARE LOPARE  /* () */
+%token UPBRAC  LOBRAC /* [] */
+%token UPBRACE LOBRACE/* {} */
 %token ID             /* identifier */
 %token WHILE FOR DO   /* keyword */
 %token IF ELSE        /* keyword */
@@ -28,11 +27,26 @@ extern char buf[256];           /* declared in lex.l */
 %token STRING         /* type */
 %token CONTINUE BREAK /* keyword */
 %token RETURN         /* keyword */
-%token ASSIGN         /* sign */
+%token ASSIGN         /* = */
+%token EXCLAM         /* ! */
+%token ANDAND OROR    /* && || */
+%token LT GT LE GE    /* < > <= >= */
+%token EQUAL NOTEQUAL /* == != */
+%token PLUS MINUS     /* + - */
+%token MUL DIV        /* * / */
+%token MOD            /* % */
 %token INTEGER        /* value */
 %token FLOAT_NUM      /* value */
 %token ONESTRING      /* value */
 %token SCIENTIFIC     /* value */
+
+%left OROR
+%left ANDAND
+%left EXCLAM
+%left LT GT EQUAL LE GE NOTEQUAL
+%left PLUS MINUS
+%left MUL DIV MOD
+%left HIGH_P
 
 %%
 
@@ -51,6 +65,10 @@ declaration_list :
     |
     ;
 definition_list :
+      definition_list type identifier function_decl UPBRACE statement LOBRACE
+    | definition_list VOID identifier function_decl UPBRACE statement LOBRACE
+    | type identifier function_decl UPBRACE statement LOBRACE
+    | VOID identifier function_decl UPBRACE statement LOBRACE
     ;
 
 
@@ -87,29 +105,86 @@ decl_array :
     |
     ;
 
+ ////////////////// Statements ///////////////////
+statement :
+      statement type identifier var_decl SEMICOLON
+    | statement CONST type identifier const_decl SEMICOLON
+    | statement identifier ASSIGN expression SEMICOLON
+    | statement PRINT expression SEMICOLON
+    | statement IF UPPARE expression LOPARE UPBRACE statement LOBRACE
+    | statement IF UPPARE expression LOPARE UPBRACE statement LOBRACE ELSE UPBRACE statement LOBRACE
+    | statement FOR UPPARE expression LOPARE UPBRACE statement LOBRACE
+    | statement WHILE UPPARE expression LOPARE UPBRACE statement LOBRACE
+    | statement SEMICOLON
+    | statement UPBRACE statement LOBRACE
+    |
+    ;
+
+ ////////////// Expression ////////////
+expression :
+      UPPARE expression LOPARE
+    | MINUS expression %prec HIGH_P
+    | EXCLAM expression
+    | expression PLUS expression
+    | expression MINUS expression
+    | expression MUL expression
+    | expression DIV expression
+    | expression MOD expression
+    | expression ANDAND expression
+    | expression OROR expression
+    | expression LT expression
+    | expression GT expression
+    | expression LE expression
+    | expression GE expression
+    | expression EQUAL expression
+    | expression NOTEQUAL expression
+    | value
+    | identifier function_call
+    ;
+
+ ////////////// Function call //////////////
+function_call :
+      UPPARE LOPARE
+    | UPPARE expression LOPARE
+    |
+    ;
 
  ////////////// Micros ////////////////
-type : INT
-     | float_type
-     | STRING
-     | bool_type
-     ;
+type : 
+      INT
+    | float_type
+    | STRING
+    | bool_type
+    ;
 
-float_type : FLOAT
-           | DOUBLE
-           ;
+float_type : 
+      FLOAT
+    | DOUBLE
+    ;
 
-bool_type : BOOL
-          | BOOLEAN
-          ;
+bool_type : 
+      BOOL
+    | BOOLEAN
+    ;
 
-identifier : ID
-           ;
+identifier : 
+      ID
+    ;
 
-value : INTEGER
-      | FLOAT_NUM
-      ;
+value : 
+      int_value
+    | FLOAT_NUM
+    ;
 
+int_value :
+      INTEGER
+    | bool_value
+    ;
+
+bool_value :
+      TRUE
+    | FALSE
+    ;
 
 %%
 

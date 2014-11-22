@@ -130,11 +130,27 @@ space_n     [ \t\n]
     else if(strcmp(yytext, ")") == 0) return LOPARE;
     else if(strcmp(yytext, "[") == 0) return UPBRAC;
     else if(strcmp(yytext, "]") == 0) return LOBRAC;
+    else if(strcmp(yytext, "{") == 0) return UPBRACE;
+    else if(strcmp(yytext, "}") == 0) return LOBRACE;
 }
 
 <INITIAL>{arithmetic}|{relational}|{logical} {   //operator
     token(yytext);
     if(strcmp(yytext, "=") == 0) return ASSIGN;
+    else if(strcmp(yytext, "!") == 0) return EXCLAM;
+    else if(strcmp(yytext, "&&") == 0) return ANDAND;
+    else if(strcmp(yytext, "||") == 0) return OROR;
+    else if(strcmp(yytext, "<") == 0) return LT;
+    else if(strcmp(yytext, ">") == 0) return GT;
+    else if(strcmp(yytext, "<=") == 0) return LE;
+    else if(strcmp(yytext, ">=") == 0) return GE;
+    else if(strcmp(yytext, "!=") == 0) return NOTEQUAL;
+    else if(strcmp(yytext, "==") == 0) return EQUAL;
+    else if(strcmp(yytext, "+") == 0) return PLUS;
+    else if(strcmp(yytext, "-") == 0) return MINUS;
+    else if(strcmp(yytext, "*") == 0) return MUL;
+    else if(strcmp(yytext, "/") == 0) return DIV;
+    else if(strcmp(yytext, "%") == 0) return MOD;
 }
 
 <INITIAL>{keyword} {     //keywords
