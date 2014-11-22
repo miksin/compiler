@@ -36,73 +36,59 @@ extern char buf[256];           /* declared in lex.l */
 
 %%
 
-program : decl_and_def_list
-        ;
-decl_and_def_list : declaration_list
-                  //  | decl_and_def_list definition_list
-                    ;
-declaration_list : declaration_list funct_decl
-                 | declaration_list var_decl
-                 | declaration_list const_decl
-                 |
-                 ;
+ ///////////////////// Structure ////////////////////
+program :
+      decl_and_def_list
+    ;
+decl_and_def_list :
+      declaration_list definition_list
+    ;
+declaration_list : 
+      declaration_list type identifier var_decl SEMICOLON
+    | declaration_list type identifier function_decl SEMICOLON
+    | declaration_list VOID identifier function_decl SEMICOLON
+    | declaration_list CONST type identifier const_decl SEMICOLON
+    |
+    ;
+definition_list :
+    ;
 
-funct_decl : decl UPPARE arguments LOPARE SEMICOLON
-           | VOID identifier UPPARE arguments LOPARE SEMICOLON
-           ;
-var_decl : decl id_list SEMICOLON
-         ;
-const_decl : CONST INT identifier ASSIGN INTEGER const_int_list SEMICOLON
-           | CONST float_type identifier ASSIGN FLOAT_NUM const_float_list SEMICOLON
-           | CONST STRING identifier ASSIGN ONESTRING const_string_list SEMICOLON
-           | CONST bool_type identifier ASSIGN  const_bool_list SEMICOLON
-           ;
 
-decl : type identifier array
-     ;
+ //////////////////// Declaration ///////////////////
+var_decl :
+      decl_array decl_var_list
+    | decl_array
+    ;
+decl_var_list :
+      COMMA identifier decl_array decl_var_list
+    | COMMA identifier decl_array
+    ;
 
-arguments : non_empty_arguments
-          |
-          ;
+function_decl :
+      UPPARE arguments LOPARE
+    ;
+arguments :
+      type identifier decl_array more_argu
+    | type identifier decl_array
+    |
+    ;
+more_argu :
+      COMMA type identifier decl_array more_argu
+    | COMMA type identifier
+    ;
 
-non_empty_arguments : non_empty_arguments COMMA decl
-                    | decl
-                    ;
+const_decl :
+    | COMMA identifier ASSIGN value const_decl
+    | ASSIGN value
+    ;
 
-id_list : id_list COMMA identifier
-        |
-        ;
+decl_array :
+      decl_array UPBRAC INTEGER LOBRAC
+    |
+    ;
 
-const_int_list : const_int_list COMMA identifier ASSIGN INTEGER
-               |
-               ;
 
-const_float_list : const_float_list COMMA identifier ASSIGN FLOAT_NUM
-                 |
-                 ;
-
-const_string_list : const_string_list COMMA identifier ASSIGN ONESTRING
-                  |
-                  ;
-
-const_bool_list : const_bool_list COMMA identifier ASSIGN bool_value
-                |
-                ;
-
-array : is_array
-      |
-      ;
-
-is_array : is_array index
-         | index
-         ;
-
-index : UPBRAC expression LOBRAC
-      ;
-
-expression : value
-           ;
-
+ ////////////// Micros ////////////////
 type : INT
      | float_type
      | STRING
@@ -123,10 +109,6 @@ identifier : ID
 value : INTEGER
       | FLOAT_NUM
       ;
-
-bool_value : TRUE
-           | FALSE
-           ;
 
 
 %%
