@@ -1,5 +1,6 @@
 %{
 #include "y.tab.h"
+#include <string.h>
 
 #define LIST                { strncat(buf, yytext, sizeof(buf) - strlen(buf) - 1); }
 #define strCat(t)           { strncat(str_buf, t, sizeof(str_buf) - strlen(str_buf) - 1); }

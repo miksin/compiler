@@ -52,31 +52,47 @@ extern char buf[256];           /* declared in lex.l */
 
  ///////////////////// Structure ////////////////////
 program :
-      decl_and_def_list
+      decl_only_list decl_and_def_list
     ;
+decl_only_list :
+      declaration_list decl_only_list
+    | definition_list
+    ;
+
 decl_and_def_list :
-      declaration_list definition_list
-    ;
-declaration_list : 
-      declaration_list type identifier var_decl SEMICOLON
-    | declaration_list type identifier function_decl SEMICOLON
-    | declaration_list VOID identifier function_decl SEMICOLON
-    | declaration_list CONST type identifier const_decl SEMICOLON
+      decl_and_def_list declaration_list
+    | decl_and_def_list definition_list
     |
     ;
+declaration_list : 
+      type identifier var_decl SEMICOLON
+    | type identifier function_decl SEMICOLON
+    | VOID identifier function_decl SEMICOLON
+    | CONST type identifier const_decl SEMICOLON
+    ;
 definition_list :
-      definition_list type identifier function_decl UPBRACE statement LOBRACE
-    | definition_list VOID identifier function_decl UPBRACE statement LOBRACE
-    | type identifier function_decl UPBRACE statement LOBRACE
+      type identifier function_decl UPBRACE statement LOBRACE
     | VOID identifier function_decl UPBRACE statement LOBRACE
     ;
 
-
- //////////////////// Declaration ///////////////////
+ //////////////////// Decl and Def ///////////////////
 var_decl :
-      decl_array decl_var_list
-    | decl_array
+      decl_array decl_assign decl_var_list
+    | decl_array decl_assign
     ;
+decl_assign :
+      ASSIGN var_init
+    |
+    ;
+var_init :
+      expr
+    | UPBRACE expr more_expr LOBRACE
+    ;
+more_expr :
+     
+    | more_expr COMMA expr
+    ;
+
 decl_var_list :
       COMMA identifier decl_array decl_var_list
     | COMMA identifier decl_array
@@ -109,45 +125,86 @@ decl_array :
 statement :
       statement type identifier var_decl SEMICOLON
     | statement CONST type identifier const_decl SEMICOLON
-    | statement identifier ASSIGN expression SEMICOLON
-    | statement PRINT expression SEMICOLON
-    | statement IF UPPARE expression LOPARE UPBRACE statement LOBRACE
-    | statement IF UPPARE expression LOPARE UPBRACE statement LOBRACE ELSE UPBRACE statement LOBRACE
-    | statement FOR UPPARE expression LOPARE UPBRACE statement LOBRACE
-    | statement WHILE UPPARE expression LOPARE UPBRACE statement LOBRACE
+    | statement assignment SEMICOLON
+    | statement a_function SEMICOLON
+    | statement PRINT expr SEMICOLON
+    | statement READ identifier id_append SEMICOLON
+    | statement IF UPPARE expr LOPARE UPBRACE statement LOBRACE
+    | statement IF UPPARE expr LOPARE UPBRACE statement LOBRACE ELSE UPBRACE statement LOBRACE
+    | statement FOR UPPARE initial_expr SEMICOLON initial_expr SEMICOLON initial_expr LOPARE UPBRACE statement LOBRACE
+    | statement WHILE UPPARE expr LOPARE UPBRACE statement LOBRACE
+    | statement DO UPBRACE statement LOBRACE WHILE UPPARE expr LOPARE SEMICOLON
+    | statement RETURN expr SEMICOLON
+    | statement BREAK SEMICOLON
+    | statement CONTINUE SEMICOLON
     | statement SEMICOLON
     | statement UPBRACE statement LOBRACE
     |
     ;
 
- ////////////// Expression ////////////
-expression :
-      UPPARE expression LOPARE
-    | MINUS expression %prec HIGH_P
-    | EXCLAM expression
-    | expression PLUS expression
-    | expression MINUS expression
-    | expression MUL expression
-    | expression DIV expression
-    | expression MOD expression
-    | expression ANDAND expression
-    | expression OROR expression
-    | expression LT expression
-    | expression GT expression
-    | expression LE expression
-    | expression GE expression
-    | expression EQUAL expression
-    | expression NOTEQUAL expression
-    | value
-    | identifier function_call
+ ////////////// expression ////////////
+init_expr :
+      init_expr COMMA assignment
+    | init_expr COMMA expr
+    | assignment
+    | expr
     ;
 
- ////////////// Function call //////////////
-function_call :
-      UPPARE LOPARE
-    | UPPARE expression LOPARE
+initial_expr :
+      init_expr
     |
     ;
+
+expr :
+      UPPARE expr LOPARE
+    | MINUS expr %prec HIGH_P
+    | EXCLAM expr
+    | expr PLUS expr
+    | expr MINUS expr
+    | expr MUL expr
+    | expr DIV expr
+    | expr MOD expr
+    | expr ANDAND expr
+    | expr OROR expr
+    | expr LT expr
+    | expr GT expr
+    | expr LE expr
+    | expr GE expr
+    | expr EQUAL expr
+    | expr NOTEQUAL expr
+    | value
+    | identifier id_append
+    ;
+
+assignment :
+      identifier array ASSIGN var_init
+    | identifier ASSIGN var_init
+    ;
+
+ ////////////// What ID //////////////
+id_append :
+      function_call
+    | array
+    |
+    ;
+
+a_function :
+      identifier function_call
+    ;
+
+function_call :
+      UPPARE LOPARE
+    | UPPARE expr more_funct_argu LOPARE
+    ;
+
+more_funct_argu :
+    
+    | more_funct_argu COMMA expr
+    ;
+
+array :
+      UPBRAC expr LOBRAC
+    | array UPBRAC expr LOBRAC
 
  ////////////// Micros ////////////////
 type : 
@@ -174,6 +231,8 @@ identifier :
 value : 
       int_value
     | FLOAT_NUM
+    | ONESTRING
+    | SCIENTIFIC
     ;
 
 int_value :
