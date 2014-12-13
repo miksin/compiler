@@ -1,0 +1,14 @@
+all:
+	yacc -d -v parser.y
+	lex scanner.l
+	gcc -o parser lex.yy.c y.tab.c -ly -lfl
+
+clean:
+	rm -f lex.yy.c
+	rm -f y.tab.c
+	rm -f y.tab.h
+	rm -f y.output
+	rm -f parser
+
+test:
+	./parser testfile
