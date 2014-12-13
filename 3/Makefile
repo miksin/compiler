@@ -1,7 +1,7 @@
 all:
 	yacc -d -v parser.y
 	lex scanner.l
-	gcc -o parser lex.yy.c y.tab.c -ly -lfl
+	gcc -o parser lex.yy.c y.tab.c symtbl.c -ly -lfl
 
 clean:
 	rm -f lex.yy.c
