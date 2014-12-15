@@ -27,7 +27,7 @@ struct Attribute {
     struct Argu* argu;
     int intV;
     double floV;
-    char* strV;
+    char strV[1024];
 };
 
 struct Argu {
@@ -39,12 +39,20 @@ struct Argu {
 void SymbolTableBuild(struct SymbolTable*);
 void SymbolTablePrint(struct SymbolTable*);
 void SymbolTablePush(struct SymbolTable*, struct Entry*);
+void SymbolTablePop(struct SymbolTable*);
 struct Entry* SymbolTableFind(struct SymbolTable*, const char*);
 
 struct Entry* BuildEntry(const char*, const char*, int, struct Type*, struct Attribute*);
 struct Entry* CopyEntry(const struct Entry*);
-struct Type* BuildType(const char*, const struct Arraynode*);
+struct Type* BuildType(const char*, struct Arraynode*);
 struct Type* CopyType(const struct Type*);
-struct Arraynode* AddDimen(struct Arraynode*, int);
-struct Attribute* BuildAttr(const struct Argu*, int, double, const char*);
+void TypeAddDimen(struct Type*, int);
+struct Attribute* BuildAttr(struct Argu*, int, double, const char*);
 struct Attribute* CopyAttr(const struct Attribute*);
+struct Argu* BuildArgu(const char*, struct Arraynode*);
+struct Argu* CopyArgu(const struct Argu*);
+void ArguAddDimen(struct Argu*, int);
+void DelEntry(struct Entry*);
+void DelType(struct Type*);
+void DelAttr(struct Attribute*);
+void DelArgu(struct Argu*);

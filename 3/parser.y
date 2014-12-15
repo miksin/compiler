@@ -8,27 +8,38 @@ extern int linenum;             /* declared in lex.l */
 extern FILE *yyin;              /* declared by lex */
 extern char *yytext;            /* declared by lex */
 extern char buf[256];           /* declared in lex.l */
+struct SymbolTable Alice;
+
 %}
+
+%union {
+    double dval;
+    int ival;
+    char *text;
+}
+
+%type <text> type float_type bool_type
+%type <text> identifier
 
 %token SEMICOLON      /* ; */
 %token COMMA          /* , */
 %token UPPARE LOPARE  /* () */
 %token UPBRAC  LOBRAC /* [] */
 %token UPBRACE LOBRACE/* {} */
-%token ID             /* identifier */
+%token <text> ID             /* identifier */
 %token WHILE FOR DO   /* keyword */
 %token IF ELSE        /* keyword */
-%token TRUE FALSE     /* keyword */
+%token <text> TRUE FALSE     /* keyword */
 %token PRINT          /* keyword */
 %token CONST          /* keyword */
-%token READ           /* keyword */
-%token BOOL BOOLEAN   /* type */
-%token VOID           /* type */
-%token INT            /* type */
-%token FLOAT DOUBLE   /* type */
-%token STRING         /* type */
-%token CONTINUE BREAK /* keyword */
-%token RETURN         /* keyword */
+%token <text> READ           /* keyword */
+%token <text> BOOL BOOLEAN   /* type */
+%token <text> VOID           /* type */
+%token <text> INT            /* type */
+%token <text> FLOAT DOUBLE   /* type */
+%token <text> STRING         /* type */
+%token <text> CONTINUE BREAK /* keyword */
+%token <text> RETURN         /* keyword */
 %token ASSIGN         /* = */
 %token EXCLAM         /* ! */
 %token ANDAND OROR    /* && || */
@@ -62,15 +73,18 @@ decl_only_list :
     ;
 
 decl_and_def_list :
-      decl_and_def_list declaration_list
+      decl_and_def_list declaration_list 
     | decl_and_def_list definition_list
     |
     ;
 declaration_list : 
-      type identifier var_decl SEMICOLON
-    | type identifier function_decl SEMICOLON
+      type identifier var_decl SEMICOLON {
+        SymbolTablePush(&Alice, BuildEntry($2, "variable", Alice.nowlevel, BuildType($1, NULL), BuildAttr(NULL, 0, 0, ""))); 
+        SymbolTablePrint(&Alice);
+      }
+    | type identifier function_decl SEMICOLON  { printf("Decl: type=%s id=%s\n", $1, $2); }
     | VOID identifier function_decl SEMICOLON
-    | CONST type identifier const_decl SEMICOLON
+    | CONST type identifier const_decl SEMICOLON 
     ;
 definition_list :
       type identifier function_decl UPBRACE statement LOBRACE
@@ -210,24 +224,24 @@ array :
 
  ////////////// Micros ////////////////
 type : 
-      INT
-    | float_type
-    | STRING
-    | bool_type
+      INT        
+    | float_type   { $$=strdup($1); }
+    | STRING      
+    | bool_type   
     ;
 
 float_type : 
-      FLOAT
-    | DOUBLE
+      FLOAT        { $$=strdup($1); }
+    | DOUBLE      
     ;
 
 bool_type : 
-      BOOL
-    | BOOLEAN
+      BOOL        
+    | BOOLEAN      
     ;
 
 identifier : 
-      ID
+      ID           { $$=strdup($1); }
     ;
 
 value : 
@@ -272,8 +286,7 @@ int  main( int argc, char **argv )
         exit(-1);
     }
     
-    struct SymbolTable *Alice = (struct SymbolTable*)malloc(sizeof(struct SymbolTable));
-    SymbolTableBuild(Alice);
+    SymbolTableBuild(&Alice);
 
     yyin = fp;
     yyparse();

@@ -156,6 +156,7 @@ space_n     [ \t\n]
 
 <INITIAL>{keyword} {     //keywords
     tokenString("KW", yytext);
+    yylval.text = strdup(yytext);
     if(strcmp(yytext, "while") == 0)
         return WHILE;
     else if(strcmp(yytext, "do") == 0)
@@ -216,6 +217,7 @@ space_n     [ \t\n]
 <INITIAL>{letter}({letter}|{digit})* {  //identifier
     //insert(yytext);
     tokenString("id", yytext);
+    strcpy(yylval.text, yytext);
     return ID;
 }
 
