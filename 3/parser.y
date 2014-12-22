@@ -75,7 +75,6 @@ struct Argu *argu_buf;
 
 %%
 
- ///////////////////// Structure ////////////////////
 program :
       decl_only_list decl_and_def_list
     ;
@@ -106,18 +105,25 @@ declaration_list :
     ;
 definition_list :
       type function_decl UPBRACE { 
+        int n;
         DelType(type_buf);
-        if(FuncDefCheck(Alice, $2, Error_msg) == 0){
+        if((n = FuncDefCheck(Alice, $2, Error_msg)) == 0){ 
+            /* Need to push both func and argu */
             SymbolTablePushOne(Alice, $2);
             SymbolTablePush(Alice, Alice_buf);
             (Alice->nowlevel)++;
             (Alice_buf->nowlevel)++;
             SymbolTablePushArgu(Alice, $2->attr->argu);
         }
-        else {
+        else if(n == 1){  
+            /* Need to push only argu */
             (Alice->nowlevel)++;
             (Alice_buf->nowlevel)++;
             SymbolTablePushArgu(Alice, (SymbolTableFind(Alice, $2->name))->attr->argu);
+        }
+        else {
+            (Alice->nowlevel)++;
+            (Alice_buf->nowlevel)++;
         }
       } statement LOBRACE {
         SymbolTablePrint(Alice);
@@ -126,7 +132,6 @@ definition_list :
       }
     ;
 
- //////////////////// Decl and Def ///////////////////
 var_decl :
       var_decl_member { 
         SymbolTablePushOne(Alice_buf, CopyEntry(entry_buf));
@@ -227,7 +232,6 @@ decl_array :
     | UPBRAC INTEGER LOBRAC { AddDimen(&array_buf, atoi($2)); }
     ;
 
- ////////////////// Statements ///////////////////
 statement :
       statement type var_decl SEMICOLON {
         DelType(type_buf); 
@@ -254,7 +258,6 @@ statement :
     |
     ;
 
- ////////////// expression ////////////
 init_expr :
       init_expr COMMA assignment
     | init_expr COMMA expr
@@ -323,7 +326,6 @@ assignment :
     | identifier ASSIGN var_init
     ;
 
- ////////////// What ID //////////////
 id_append :
       function_call
     | array
@@ -348,7 +350,6 @@ array :
       UPBRAC expr LOBRAC
     | array UPBRAC expr LOBRAC
 
- ////////////// Micros ////////////////
 type : 
       INT         { type_buf=BuildType($1, NULL); }
     | float_type  { type_buf=$1; }

@@ -143,7 +143,7 @@ void SymbolTablePush(struct SymbolTable* Alice, struct SymbolTable *Bob){
         return;
     int i, size=Bob->size;
     for(i=0; i<size; i++){
-        if(strcmp(Bob->entryVector[i]->kind, "variable")==0 && ValDeclCheck(Alice, Bob->entryVector[i], Error_msg) != 1)
+        if((strcmp(Bob->entryVector[i]->kind, "variable")==0 || strcmp(Bob->entryVector[i]->kind, "constant")==0) && ValDeclCheck(Alice, Bob->entryVector[i], Error_msg) != 1)
             SymbolTablePushOne(Alice, Bob->entryVector[i]);
     }
     Bob->size = 0;
@@ -417,7 +417,78 @@ int ValDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
     return reval;
 }
 
-int ConstDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable* errtbl){}
+int ConstDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable* errtbl){
+    if(tbl==NULL || entry==NULL || errtbl==NULL)
+        return -1;
+
+    char msg[1024];
+    int reval;
+    struct Entry *founded;
+    if((founded = SymbolTableFind(tbl, entry->name)) != NULL){
+        if(founded->level == entry->level){
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "Identifier '%s' has been declared in this scope", entry->name);
+            ErrorTablePush(errtbl, msg);
+            reval = 1;
+        }
+    }
+    
+    if(strcmp(entry->type->type, "void") == 0){
+        memset(msg, 0, sizeof(msg));
+        snprintf(msg, sizeof(msg), "Value type should not be 'void'", entry->name);
+        ErrorTablePush(errtbl, msg);
+        reval = 1;
+    }
+
+    if(entry->type->array==NULL && entry->attr!=NULL && entry->attr->value!=NULL){
+        if(strcmp(entry->type->type, "double") == 0){
+            if(strcmp(entry->attr->value->type->type, "double") == 0)
+                ;
+            else if(strcmp(entry->attr->value->type->type, "float") == 0)
+                strcpy(entry->attr->value->type->type, "double");
+            else if(strcmp(entry->attr->value->type->type, "int") == 0){
+                strcpy(entry->attr->value->type->type, "double");
+                entry->attr->value->dval = (double)entry->attr->value->dval;
+            }
+            else {
+                memset(msg, 0, sizeof(msg));
+                snprintf(msg, sizeof(msg), "Invalid initial value type: %s", entry->attr->value->type->type);
+                ErrorTablePush(errtbl, msg);
+                DelAttr(entry->attr);
+                entry->attr = NULL;
+                reval = 2;
+            }
+        }
+        else if(strcmp(entry->type->type, "float") == 0){
+            if(strcmp(entry->attr->value->type->type, "float") == 0)
+                ;
+            else if(strcmp(entry->attr->value->type->type, "int") == 0){
+                strcpy(entry->attr->value->type->type, "float");
+                entry->attr->value->dval = (double)entry->attr->value->dval;
+            }
+            else {
+                memset(msg, 0, sizeof(msg));
+                snprintf(msg, sizeof(msg), "Invalid initial value type: %s", entry->attr->value->type->type);
+                ErrorTablePush(errtbl, msg);
+                DelAttr(entry->attr);
+                entry->attr = NULL;
+                reval = 2;
+            }
+        }
+        else {
+            if(strcmp(entry->attr->value->type->type, entry->type->type) != 0){
+                memset(msg, 0, sizeof(msg));
+                snprintf(msg, sizeof(msg), "Invalid initial value type: %s", entry->attr->value->type->type);
+                ErrorTablePush(errtbl, msg);
+                DelAttr(entry->attr);
+                entry->attr = NULL;
+                reval = 2;
+            }
+        }
+    }
+
+    return reval;
+}
 
 int FuncDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable* errtbl){
     if(tbl==NULL || entry==NULL || errtbl==NULL)
@@ -439,25 +510,29 @@ int FuncDefCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
     struct Entry *founded;
     int reval = 0;
     if((founded = SymbolTableFind(tbl, entry->name)) != NULL){
+        reval = 1;  /* 1: No need to push this function into symboltable */
         if(CmpType(entry->type, founded->type) != 0){
             memset(msg, 0, sizeof(msg));
             snprintf(msg, sizeof(msg), "Function type different from declare");
             ErrorTablePush(errtbl, msg);
+                /* 
             if(strcmp(founded->kind, "function") == 0){
                 DelType(founded->type);
                 founded->type = CopyType(entry->type);
             }
-            reval = 1;
+                */
         }
         if(CmpArgu(entry->attr->argu, founded->attr->argu) != 0){
             memset(msg, 0, sizeof(msg));
             snprintf(msg, sizeof(msg), "Function argument different from declare");
             ErrorTablePush(errtbl, msg);
+                /*
             if(strcmp(founded->kind, "function") == 0){
                 DelArgu(&(founded->attr->argu));
                 founded->attr->argu = CopyArgu(entry->attr->argu);
             }
-            reval = 1;
+                */
+            reval = 2;
         }
     }
     return reval;
