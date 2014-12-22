@@ -12,3 +12,10 @@ clean:
 
 test:
 	./parser testfile
+
+sync:
+	scp parser.y lmchen@140.113.89.3:~/CP/
+	scp scanner.l lmchen@140.113.89.3:~/CP/
+	scp symtbl.h lmchen@140.113.89.3:~/CP/
+	scp symtbl.c lmchen@140.113.89.3:~/CP/
+    
