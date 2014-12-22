@@ -8,18 +8,30 @@ extern int linenum;             /* declared in lex.l */
 extern FILE *yyin;              /* declared by lex */
 extern char *yytext;            /* declared by lex */
 extern char buf[256];           /* declared in lex.l */
-struct SymbolTable Alice;
+struct SymbolTable *Alice;
+struct SymbolTable *Alice_buf;
+struct ErrorTable *Error_msg;
+struct Entry *entry_buf;
+struct Type *type_buf;
+struct Arraynode *array_buf;
+struct Argu *argu_buf;
 
 %}
 
 %union {
-    double dval;
-    int ival;
     char *text;
+    struct Type *type;
+    struct Entry *entry;
+    struct Value *value;
+    struct ValueArray *varray;
 }
 
-%type <text> type float_type bool_type
 %type <text> identifier
+%type <type> argu_type float_type bool_type
+%type <value> value bool_value const_value
+%type <value> expr init_expr var_init
+%type <entry> function_decl
+%type <varray> var_array_init more_expr;
 
 %token SEMICOLON      /* ; */
 %token COMMA          /* , */
@@ -48,10 +60,10 @@ struct SymbolTable Alice;
 %token PLUS MINUS     /* + - */
 %token MUL DIV        /* * / */
 %token MOD            /* % */
-%token INTEGER        /* value */
-%token FLOAT_NUM      /* value */
-%token ONESTRING      /* value */
-%token SCIENTIFIC     /* value */
+%token <text> INTEGER        /* value */
+%token <text> FLOAT_NUM      /* value */
+%token <text> ONESTRING      /* value */
+%token <text> SCIENTIFIC     /* value */
 
 %left OROR
 %left ANDAND
@@ -78,69 +90,153 @@ decl_and_def_list :
     |
     ;
 declaration_list : 
-      type identifier var_decl SEMICOLON {
-        SymbolTablePush(&Alice, BuildEntry($2, "variable", Alice.nowlevel, BuildType($1, NULL), BuildAttr(NULL, 0, 0, ""))); 
-        SymbolTablePrint(&Alice);
+      type var_decl SEMICOLON { 
+        DelType(type_buf); 
+        SymbolTablePush(Alice, Alice_buf);
       }
-    | type identifier function_decl SEMICOLON  { printf("Decl: type=%s id=%s\n", $1, $2); }
-    | VOID identifier function_decl SEMICOLON
-    | CONST type identifier const_decl SEMICOLON 
+    | type function_decl SEMICOLON { 
+        DelType(type_buf); 
+        if(FuncDeclCheck(Alice, $2, Error_msg) == 0)
+            SymbolTablePushOne(Alice, $2);
+      }
+    | CONST type const_decl SEMICOLON { 
+        DelType(type_buf); 
+        SymbolTablePush(Alice, Alice_buf);
+      }
     ;
 definition_list :
-      type identifier function_decl UPBRACE statement LOBRACE
-    | VOID identifier function_decl UPBRACE statement LOBRACE
+      type function_decl UPBRACE { 
+        DelType(type_buf);
+        if(FuncDefCheck(Alice, $2, Error_msg) == 0){
+            SymbolTablePushOne(Alice, $2);
+            SymbolTablePush(Alice, Alice_buf);
+            (Alice->nowlevel)++;
+            (Alice_buf->nowlevel)++;
+            SymbolTablePushArgu(Alice, $2->attr->argu);
+        }
+        else {
+            (Alice->nowlevel)++;
+            (Alice_buf->nowlevel)++;
+            SymbolTablePushArgu(Alice, (SymbolTableFind(Alice, $2->name))->attr->argu);
+        }
+      } statement LOBRACE {
+        SymbolTablePrint(Alice);
+        SymbolTablePop(Alice);
+        SymbolTablePop(Alice_buf);
+      }
     ;
 
  //////////////////// Decl and Def ///////////////////
 var_decl :
-      decl_array decl_assign decl_var_list
-    | decl_array decl_assign
-    ;
-decl_assign :
-      ASSIGN var_init
-    |
-    ;
-var_init :
-      expr
-    | UPBRACE expr more_expr LOBRACE
-    ;
-more_expr :
-     
-    | more_expr COMMA expr
+      var_decl_member { 
+        SymbolTablePushOne(Alice_buf, CopyEntry(entry_buf));
+        ClearEntry(entry_buf);
+      }
+    | var_decl COMMA var_decl_member {
+        SymbolTablePushOne(Alice_buf, CopyEntry(entry_buf));
+        ClearEntry(entry_buf);
+      }
     ;
 
-decl_var_list :
-      COMMA identifier decl_array decl_var_list
-    | COMMA identifier decl_array
+var_decl_member :
+      identifier { 
+        AssignEntry(entry_buf, $1, "variable", Alice->nowlevel, CopyType(type_buf), NULL);
+      }
+    | identifier ASSIGN var_init {
+        AssignEntry(entry_buf, $1, "variable", Alice->nowlevel, CopyType(type_buf), NULL);
+        AssignValue(entry_buf, $3);
+      }
+    | identifier decl_array {
+        AssignEntry(entry_buf, $1, "variable", Alice->nowlevel, CopyType(type_buf), NULL);
+        entry_buf->type->array = CopyArray(array_buf);
+        DelArray(&array_buf);
+      }
+    | identifier decl_array ASSIGN var_array_init {
+        AssignEntry(entry_buf, $1, "variable", Alice->nowlevel, CopyType(type_buf), NULL);
+        entry_buf->type->array = CopyArray(array_buf);
+        DelArray(&array_buf);
+        AssignValueArray(entry_buf, $4);
+      }
+    ;
+
+var_init :
+      expr { $$=$1; }
+    ;
+var_array_init :
+      UPBRACE more_expr LOBRACE { $$=$2; }
+    ;
+more_expr :
+      expr {  
+        $$ = BuildValueArray();
+        ValueArrayPush($$, $1);
+      }
+    | more_expr COMMA expr {
+        ValueArrayPush($1, $3);
+      }
     ;
 
 function_decl :
-      UPPARE arguments LOPARE
+      identifier UPPARE arguments LOPARE {
+        AssignEntry(entry_buf, $1, "function", Alice->nowlevel, CopyType(type_buf), BuildAttr(CopyArgu(argu_buf), NULL));
+        DelArgu(&argu_buf);
+        $$ = CopyEntry(entry_buf);
+        ClearEntry(entry_buf);
+      }
+    | identifier UPPARE LOPARE { 
+        AssignEntry(entry_buf, $1, "function", Alice->nowlevel, CopyType(type_buf), NULL);
+        $$ = CopyEntry(entry_buf);
+        ClearEntry(entry_buf);
+      }
     ;
 arguments :
-      type identifier decl_array more_argu
-    | type identifier decl_array
-    |
-    ;
-more_argu :
-      COMMA type identifier decl_array more_argu
-    | COMMA type identifier
+      arguments COMMA argu_type identifier decl_array {
+        $3->array = CopyArray(array_buf);
+        DelArray(&array_buf);
+        AddArgu(&argu_buf, $4, $3);
+      }
+    | argu_type identifier decl_array {
+        $1->array = CopyArray(array_buf);
+        DelArray(&array_buf);
+        AddArgu(&argu_buf, $2, $1);
+      }
+    | arguments COMMA argu_type identifier {
+        AddArgu(&argu_buf, $4, $3);
+      }
+    | argu_type identifier {
+        AddArgu(&argu_buf, $2, $1);
+      }
     ;
 
 const_decl :
-    | COMMA identifier ASSIGN value const_decl
-    | ASSIGN value
+    | const_decl COMMA identifier ASSIGN const_value { 
+        AssignEntry(entry_buf, $3, "constant", Alice->nowlevel, CopyType(type_buf), NULL);
+        AssignValue(entry_buf, $5);
+        SymbolTablePushOne(Alice_buf, CopyEntry(entry_buf));
+        ClearEntry(entry_buf);
+      }
+    | identifier ASSIGN const_value { 
+        AssignEntry(entry_buf, $1, "constant", Alice->nowlevel, CopyType(type_buf), NULL);
+        AssignValue(entry_buf, $3);
+        SymbolTablePushOne(Alice_buf, CopyEntry(entry_buf));
+        ClearEntry(entry_buf);
+      }
     ;
 
 decl_array :
-      decl_array UPBRAC INTEGER LOBRAC
-    |
+      decl_array UPBRAC INTEGER LOBRAC { AddDimen(&array_buf, atoi($3)); }
+    | UPBRAC INTEGER LOBRAC { AddDimen(&array_buf, atoi($2)); }
     ;
 
  ////////////////// Statements ///////////////////
 statement :
-      statement type identifier var_decl SEMICOLON
-    | statement CONST type identifier const_decl SEMICOLON
+      statement type var_decl SEMICOLON {
+        DelType(type_buf); 
+        SymbolTablePush(Alice, Alice_buf);
+      }
+    | statement CONST type const_decl SEMICOLON {
+        DelType(type_buf); 
+        SymbolTablePush(Alice, Alice_buf);
+      }
     | statement assignment SEMICOLON
     | statement a_function SEMICOLON
     | statement PRINT expr SEMICOLON
@@ -162,7 +258,7 @@ statement :
 init_expr :
       init_expr COMMA assignment
     | init_expr COMMA expr
-    | assignment
+    | assignment {}
     | expr
     ;
 
@@ -172,24 +268,54 @@ initial_expr :
     ;
 
 expr :
-      UPPARE expr LOPARE
-    | MINUS expr %prec HIGH_P
-    | EXCLAM expr
-    | expr PLUS expr
-    | expr MINUS expr
-    | expr MUL expr
-    | expr DIV expr
-    | expr MOD expr
-    | expr ANDAND expr
-    | expr OROR expr
-    | expr LT expr
-    | expr GT expr
-    | expr LE expr
-    | expr GE expr
-    | expr EQUAL expr
-    | expr NOTEQUAL expr
-    | value
-    | identifier id_append
+      UPPARE expr LOPARE { $$=$2; }
+    | MINUS expr %prec HIGH_P {
+        $$=Expr_neg($2, Error_msg);
+      }
+    | EXCLAM expr { 
+        $$=Expr_exclam($2, Error_msg);
+      }
+    | expr PLUS expr {
+        $$=Expr_plus($1, $3, Error_msg);
+      }
+    | expr MINUS expr {
+        $$=Expr_minus($1, $3, Error_msg);
+      }
+    | expr MUL expr {
+        $$=Expr_mul($1, $3, Error_msg);
+      }
+    | expr DIV expr {
+        $$=Expr_div($1, $3, Error_msg);
+      }
+    | expr MOD expr {
+        $$=Expr_mod($1, $3, Error_msg);
+      }
+    | expr ANDAND expr {
+        $$=Expr_and($1, $3, Error_msg);
+      }
+    | expr OROR expr {
+        $$=Expr_or($1, $3, Error_msg);
+      }
+    | expr LT expr {
+        $$=Expr_lt($1, $3, Error_msg);
+      }
+    | expr GT expr {
+        $$=Expr_gt($1, $3, Error_msg);
+      }
+    | expr LE expr {
+        $$=Expr_le($1, $3, Error_msg);
+      }
+    | expr GE expr {
+        $$=Expr_ge($1, $3, Error_msg);
+      }
+    | expr EQUAL expr {
+        $$=Expr_eq($1, $3, Error_msg);
+      }
+    | expr NOTEQUAL expr {
+        $$=Expr_ne($1, $3, Error_msg);
+      }
+    | value { $$=$1; }
+    | identifier id_append  { }
     ;
 
 assignment :
@@ -224,41 +350,67 @@ array :
 
  ////////////// Micros ////////////////
 type : 
-      INT        
-    | float_type   { $$=strdup($1); }
-    | STRING      
-    | bool_type   
+      INT         { type_buf=BuildType($1, NULL); }
+    | float_type  { type_buf=$1; }
+    | STRING      { type_buf=BuildType($1, NULL); } 
+    | bool_type   { type_buf=$1; }
+    | VOID        { type_buf=BuildType($1, NULL); }
+    ;
+
+argu_type : 
+      INT         { $$=BuildType($1, NULL); }
+    | float_type  { $$=$1; }
+    | STRING      { $$=BuildType($1, NULL); } 
+    | bool_type   { $$=$1; }
     ;
 
 float_type : 
-      FLOAT        { $$=strdup($1); }
-    | DOUBLE      
+      FLOAT        { $$=BuildType($1, NULL); }
+    | DOUBLE       { $$=BuildType($1, NULL); }
     ;
 
 bool_type : 
-      BOOL        
-    | BOOLEAN      
+      BOOL       { $$=BuildType($1, NULL); }
+    | BOOLEAN    { $$=BuildType($1, NULL); }
     ;
 
 identifier : 
-      ID           { $$=strdup($1); }
+      ID          { $$=strdup($1); }
     ;
 
 value : 
-      int_value
-    | FLOAT_NUM
-    | ONESTRING
-    | SCIENTIFIC
+      bool_value { $$=$1; }
+    | INTEGER    { $$=BuildValue(BuildType("int", NULL), $1); }
+    | FLOAT_NUM  { $$=BuildValue(BuildType("float", NULL), $1); }
+    | ONESTRING  { $$=BuildValue(BuildType("string", NULL), $1); }
+    | SCIENTIFIC { $$=BuildValue(BuildType("float", NULL), $1); }
     ;
 
-int_value :
-      INTEGER
-    | bool_value
-    ;
+const_value :
+      bool_value { $$=$1; }
+    | INTEGER    { $$=BuildValue(BuildType("int", NULL), $1); }
+    | MINUS INTEGER  { 
+        char neg[20];
+        snprintf(neg, sizeof(neg), "-%s", $2);
+        $$=BuildValue(BuildType("int", NULL), neg);
+      }
+    | FLOAT_NUM  { $$=BuildValue(BuildType("float", NULL), $1); }
+    | MINUS FLOAT_NUM  { 
+        char neg[20];
+        snprintf(neg, sizeof(neg), "-%s", $2);
+        $$=BuildValue(BuildType("float", NULL), neg);
+      }
+    | ONESTRING  { $$=BuildValue(BuildType("string", NULL), $1); }
+    | SCIENTIFIC { $$=BuildValue(BuildType("float", NULL), $1); }
+    | MINUS SCIENTIFIC  { 
+        char neg[20];
+        snprintf(neg, sizeof(neg), "-%s", $2);
+        $$=BuildValue(BuildType("float", NULL), neg);
+      }
 
 bool_value :
-      TRUE
-    | FALSE
+      TRUE  { $$=BuildValue(BuildType("bool", NULL), "true"); }
+    | FALSE { $$=BuildValue(BuildType("bool", NULL), "false"); }
     ;
 
 %%
@@ -286,15 +438,27 @@ int  main( int argc, char **argv )
         exit(-1);
     }
     
-    SymbolTableBuild(&Alice);
+    Alice = SymbolTableBuild();
+    Alice_buf = SymbolTableBuild();
+    Error_msg = ErrorTableBuild();
+    entry_buf = BuildEntry("", "", 0, NULL, NULL);
+    array_buf = NULL;
+    DelArgu(&argu_buf);
 
     yyin = fp;
     yyparse();
 
+    SymbolTablePrint(Alice);
+    ErrorTablePrint(Error_msg);
+    /*
     fprintf( stdout, "\n" );
     fprintf( stdout, "|--------------------------------|\n" );
     fprintf( stdout, "|  There is no syntactic error!  |\n" );
     fprintf( stdout, "|--------------------------------|\n" );
+    */
+
+    DelSymbolTable(Alice);
+    DelErrorTable(Error_msg);
     exit(0);
 }
 

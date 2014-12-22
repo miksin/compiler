@@ -17,6 +17,7 @@ int linenum = 1;
 char buf[MAX_LINE_LENGTH];
 char str_buf[MAX_LINE_LENGTH];
 char e_ch[3];
+
 struct entry{
      char*  id;
      int    freq;
@@ -25,7 +26,7 @@ struct entry{
 
 struct entry* Table_head = NULL;
 
-void insert(char*);
+void InsertID(char*);
 void print();
 void print_all(struct entry*);
 void rm();
@@ -87,6 +88,7 @@ space_n     [ \t\n]
 
 <String>{doubleq} { //string end
     tokenString("string", str_buf);
+    yylval.text = strdup(str_buf);
     str_buf[0] = '\0';
     BEGIN 0;
     return ONESTRING;
@@ -201,23 +203,26 @@ space_n     [ \t\n]
 
 <INITIAL>({nonzero}{digit}*)|0 { //integers
     tokenString("integer", yytext);
+    yylval.text = strdup(yytext);
     return INTEGER;
 }
 
 <INITIAL>{digit}+(\.{digit}+)?[Ee][\+\-]?{digit}+    { //scientific
     tokenString("scientific", yytext);
+    yylval.text = strdup(yytext);
     return SCIENTIFIC;
 }
 
 <INITIAL>{digit}+\.{digit}+ { //floating-point
     tokenString("float", yytext);
+    yylval.text = strdup(yytext);
     return FLOAT_NUM;
 }
 
 <INITIAL>{letter}({letter}|{digit})* {  //identifier
-    //insert(yytext);
+    InsertID(yytext);
     tokenString("id", yytext);
-    strcpy(yylval.text, yytext);
+    yylval.text = strdup(yytext);
     return ID;
 }
 
@@ -303,8 +308,9 @@ int main( int argc, char **argv )
     rm();
     exit(0);
 }
+*/
 
-void insert(char* str){
+void InsertID(char* str){
     struct entry* p = Table_head;
     int flag = 0;
     
@@ -328,14 +334,7 @@ void insert(char* str){
     }
 
 }
-void print(){
-    printf("frequencies of identifiers:\n");
-    struct entry* p = Table_head;
-    while(p != NULL){
-        printf("%-20s%d\n",p->id,p->freq);
-        p = p->next;
-    }
-}
+
 void print(){
     printf("frequencies of identifiers:\n");
     struct entry* p = Table_head;
@@ -357,4 +356,3 @@ void rm(){
         p = p->next;
     }
 }
-*/
