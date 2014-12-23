@@ -16,17 +16,19 @@ struct SymbolTable* SymbolTableBuild(){
 
 void SymbolTablePrint(struct SymbolTable* Alice){
     int i;
-    printf("====================================================================================\n");
-    printf("Name                             Kind       Level       Type               Attribute\n");
-    printf("------------------------------------------------------------------------------------\n");
+    printf("===================================================================================================\n");
+    printf("Name                             Kind       Level       Type               Attribute               \n");
+    printf("---------------------------------------------------------------------------------------------------\n");
     for(i=0; i<Alice->size; i++){
-        printf("%-33s%-11s", Alice->entryVector[i]->name, Alice->entryVector[i]->kind);
-        SymbolTablePrintLevel(Alice->entryVector[i]->level);
-        SymbolTablePrintType(Alice->entryVector[i]->type, 0);
-        SymbolTablePrintAttr(Alice->entryVector[i]->attr, Alice->entryVector[i]->kind, Alice->entryVector[i]->type);
-        printf("\n");
+        if(Alice->entryVector[i]->level == Alice->nowlevel){
+            printf("%-33s%-11s", Alice->entryVector[i]->name, Alice->entryVector[i]->kind);
+            SymbolTablePrintLevel(Alice->entryVector[i]->level);
+            SymbolTablePrintType(Alice->entryVector[i]->type, 0);
+            SymbolTablePrintAttr(Alice->entryVector[i]->attr, Alice->entryVector[i]->kind, Alice->entryVector[i]->type);
+            printf("\n");
+        }
     }
-    printf("====================================================================================\n");
+    printf("===================================================================================================\n");
 }
 
 void SymbolTablePrintLevel(int level){
@@ -94,6 +96,7 @@ void SymbolTablePrintAttr(struct Attribute* alice, const char* kind, struct Type
             count++;
         }
     }
+        /*
     else {
         if(alice->value != NULL){
             if(strcmp(type->type, "int") == 0){
@@ -135,7 +138,7 @@ void SymbolTablePrintAttr(struct Attribute* alice, const char* kind, struct Type
             }
         }
     }
-
+    */
 }
 
 void SymbolTablePush(struct SymbolTable* Alice, struct SymbolTable *Bob){
@@ -145,6 +148,8 @@ void SymbolTablePush(struct SymbolTable* Alice, struct SymbolTable *Bob){
     for(i=0; i<size; i++){
         if((strcmp(Bob->entryVector[i]->kind, "variable")==0 || strcmp(Bob->entryVector[i]->kind, "constant")==0) && ValDeclCheck(Alice, Bob->entryVector[i], Error_msg) != 1)
             SymbolTablePushOne(Alice, Bob->entryVector[i]);
+        else
+            DelEntry(Bob->entryVector[i]);
     }
     Bob->size = 0;
 }
@@ -187,6 +192,21 @@ void SymbolTablePop(struct SymbolTable* Alice){
     Alice->nowlevel--;
 }
 
+void SymbolTableCheckRemainFunction(struct SymbolTable* tbl, struct ErrorTable* errtbl){
+    if(tbl == NULL || errtbl == NULL)
+        return;
+
+    int i, size = tbl->size;
+    char msg[1024];
+    for(i=0; i<size; i++){
+        if(strcmp(tbl->entryVector[i]->kind, "function")==0 && tbl->entryVector[i]->decl==0){
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "Function '%s' has no definition", tbl->entryVector[i]->name);
+            ErrorTablePush(errtbl, msg);
+        }
+    }
+}
+
 struct Entry* SymbolTableFind(struct SymbolTable* Alice, const char* key){
     struct Entry* ptr = NULL;
     int i;
@@ -197,6 +217,40 @@ struct Entry* SymbolTableFind(struct SymbolTable* Alice, const char* key){
         }
     }
     return ptr;
+}
+
+struct Entry* FindID(struct SymbolTable* tbl, struct ErrorTable* errtbl, const char* key){
+    struct Entry *founded = SymbolTableFind(tbl, key);
+    if(founded == NULL){
+        char msg[1024];
+        memset(msg, 0, sizeof(msg));
+        snprintf(msg, sizeof(msg), "Identifier '%s' undeclared", key);
+        ErrorTablePush(errtbl, msg);
+    }
+    return founded;
+}
+
+struct Value* CallFunction(struct SymbolTable* tbl, struct ErrorTable* errtbl, const char* key, struct Argu* argu){
+    struct Entry *founded = FindID(tbl, errtbl, key);
+    if(founded == NULL)
+        return NULL;
+    if(strcmp(founded->kind, "function") != 0){
+        char msg[1024];
+        memset(msg, 0, sizeof(msg));
+        snprintf(msg, sizeof(msg), "Identifier '%s' is not a function", key);
+        ErrorTablePush(errtbl, msg);
+        return NULL;
+    }
+   
+    struct Argu *fargu = (founded->attr == NULL)? NULL : founded->attr->argu;
+    if(CmpArguCall(fargu, argu) != 0){
+        char msg[1024];
+        memset(msg, 0, sizeof(msg));
+        snprintf(msg, sizeof(msg), "Invalid type coercion in argument");
+        ErrorTablePush(errtbl, msg);
+    }
+
+    return BuildDefaultValue(CopyType(founded->type));
 }
 
 struct ErrorTable* ErrorTableBuild(){
@@ -210,10 +264,10 @@ struct ErrorTable* ErrorTableBuild(){
 void ErrorTablePrint(struct ErrorTable* alice){
     if(alice == NULL)
         return;
-    printf("*** Error Message ***\n");
+    printf("\n");
     int i, size = alice->size;
     for(i=0; i<size; i++){
-        printf("[Error][line - %d] %s\n", alice->errorVector[i]->linenum, alice->errorVector[i]->msg);
+        printf("##########Error at Line #%-4d: %s. ##########\n", alice->errorVector[i]->linenum, alice->errorVector[i]->msg);
     }
 }
 
@@ -241,7 +295,7 @@ int ValDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
         return -1;
 
     char msg[1024];
-    int reval;
+    int reval = 0;
     struct Entry *founded;
     if((founded = SymbolTableFind(tbl, entry->name)) != NULL){
         if(founded->level == entry->level){
@@ -258,7 +312,7 @@ int ValDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
         ErrorTablePush(errtbl, msg);
         reval = 1;
     }
-
+    
     if(entry->type->array==NULL && entry->attr!=NULL && entry->attr->value!=NULL){
         if(strcmp(entry->type->type, "double") == 0){
             if(strcmp(entry->attr->value->type->type, "double") == 0)
@@ -271,11 +325,11 @@ int ValDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
             }
             else {
                 memset(msg, 0, sizeof(msg));
-                snprintf(msg, sizeof(msg), "Invalid initial value type: %s", entry->attr->value->type->type);
+                snprintf(msg, sizeof(msg), "Invalid initial value type coercion: %s -> %s", entry->attr->value->type->type, entry->type->type);
                 ErrorTablePush(errtbl, msg);
                 DelAttr(entry->attr);
                 entry->attr = NULL;
-                reval = 2;
+                reval = 1;
             }
         }
         else if(strcmp(entry->type->type, "float") == 0){
@@ -287,34 +341,54 @@ int ValDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
             }
             else {
                 memset(msg, 0, sizeof(msg));
-                snprintf(msg, sizeof(msg), "Invalid initial value type: %s", entry->attr->value->type->type);
+                snprintf(msg, sizeof(msg), "Invalid initial value type coercion: %s -> %s", entry->attr->value->type->type, entry->type->type);
                 ErrorTablePush(errtbl, msg);
                 DelAttr(entry->attr);
                 entry->attr = NULL;
-                reval = 2;
+                reval = 1;
             }
         }
         else {
             if(strcmp(entry->attr->value->type->type, entry->type->type) != 0){
                 memset(msg, 0, sizeof(msg));
-                snprintf(msg, sizeof(msg), "Invalid initial value type: %s", entry->attr->value->type->type);
+                snprintf(msg, sizeof(msg), "Invalid initial value type coercion: %s -> %s", entry->attr->value->type->type, entry->type->type);
                 ErrorTablePush(errtbl, msg);
                 DelAttr(entry->attr);
                 entry->attr = NULL;
-                reval = 2;
+                reval = 1;
             }
+        }
+    }
+    else if(entry->type->array!=NULL && entry->attr!=NULL && entry->attr->varray==NULL){ 
+        int array_size, i;
+        struct Arraynode *ptr;
+        for(ptr=entry->type->array, array_size=1; ptr!=NULL; ptr=ptr->next){
+            array_size*=(ptr->dimension);
+        }
+        if(array_size <= 0){
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "The index must be greater than zero in array declarations");
+            ErrorTablePush(errtbl, msg);
+            return 1;
         }
     }
     else if(entry->type->array!=NULL && entry->attr!=NULL && entry->attr->varray!=NULL){ /* if is array */
         int array_size, i;
         struct Arraynode *ptr;
-        for(ptr=entry->type->array, array_size=1; ptr!=NULL; ptr=ptr->next)
+        for(ptr=entry->type->array, array_size=1; ptr!=NULL; ptr=ptr->next){
             array_size*=(ptr->dimension);
+        }
+        if(array_size <= 0){
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "The index must be greater than zero in array declarations");
+            ErrorTablePush(errtbl, msg);
+            return 1;
+        }
         if(entry->attr->varray->size > array_size){
             memset(msg, 0, sizeof(msg));
             snprintf(msg, sizeof(msg), "Too many initializers");
             ErrorTablePush(errtbl, msg);
-            reval = 2;
+            reval = 1;
             for(i=array_size; i<entry->attr->varray->size; i++){
                 DelValue(entry->attr->varray->vVector[i]);
             }
@@ -345,7 +419,7 @@ int ValDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
                 }
                 else {
                     memset(msg, 0, sizeof(msg));
-                    snprintf(msg, sizeof(msg), "Invalid initial value type: %s", entry->attr->varray->vVector[i]->type->type);
+                    snprintf(msg, sizeof(msg), "Invalid initial value type coercion: %s -> %s", entry->attr->varray->vVector[i]->type->type, entry->type->type);
                     ErrorTablePush(errtbl, msg);
                     DelValue(entry->attr->varray->vVector[i]);
                     if(strcmp(entry->type->type, "double")==0 || strcmp(entry->type->type, "float")==0)
@@ -356,7 +430,7 @@ int ValDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
                         entry->attr->varray->vVector[i] = BuildValue(CopyType(entry->type), "false");
                     else
                         entry->attr->varray->vVector[i] = BuildValue(CopyType(entry->type), "");
-                    reval = 2;
+                    reval = 1;
                 }
             }
             else if(strcmp(entry->type->type, "float") == 0){
@@ -370,7 +444,7 @@ int ValDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
                 }
                 else {
                     memset(msg, 0, sizeof(msg));
-                    snprintf(msg, sizeof(msg), "Invalid initial value type: %s", entry->attr->varray->vVector[i]->type->type);
+                    snprintf(msg, sizeof(msg), "Invalid initial value type coercion: %s -> %s", entry->attr->varray->vVector[i]->type->type, entry->type->type);
                     ErrorTablePush(errtbl, msg);
                     DelValue(entry->attr->varray->vVector[i]);
                     if(strcmp(entry->type->type, "double")==0 || strcmp(entry->type->type, "float")==0)
@@ -381,7 +455,7 @@ int ValDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
                         entry->attr->varray->vVector[i] = BuildValue(CopyType(entry->type), "false");
                     else
                         entry->attr->varray->vVector[i] = BuildValue(CopyType(entry->type), "");
-                    reval = 2;
+                    reval = 1;
                 }
             }
             else {
@@ -397,7 +471,7 @@ int ValDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
                 }
                 else if(strcmp(entry->attr->varray->vVector[i]->type->type, entry->type->type) != 0){
                     memset(msg, 0, sizeof(msg));
-                    snprintf(msg, sizeof(msg), "Invalid initial value type: %s", entry->attr->varray->vVector[i]->type->type);
+                    snprintf(msg, sizeof(msg), "Invalid initial value type coercion: %s -> %s", entry->attr->varray->vVector[i]->type->type, entry->type->type);
                     ErrorTablePush(errtbl, msg);
                     DelValue(entry->attr->varray->vVector[i]);
                     if(strcmp(entry->type->type, "double")==0 || strcmp(entry->type->type, "float")==0)
@@ -408,7 +482,7 @@ int ValDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
                         entry->attr->varray->vVector[i] = BuildValue(CopyType(entry->type), "false");
                     else
                         entry->attr->varray->vVector[i] = BuildValue(CopyType(entry->type), "");
-                    reval = 2;
+                    reval = 1;
                 }
             }
         } 
@@ -456,7 +530,7 @@ int ConstDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTab
                 ErrorTablePush(errtbl, msg);
                 DelAttr(entry->attr);
                 entry->attr = NULL;
-                reval = 2;
+                reval = 1;
             }
         }
         else if(strcmp(entry->type->type, "float") == 0){
@@ -472,7 +546,7 @@ int ConstDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTab
                 ErrorTablePush(errtbl, msg);
                 DelAttr(entry->attr);
                 entry->attr = NULL;
-                reval = 2;
+                reval = 1;
             }
         }
         else {
@@ -482,7 +556,7 @@ int ConstDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTab
                 ErrorTablePush(errtbl, msg);
                 DelAttr(entry->attr);
                 entry->attr = NULL;
-                reval = 2;
+                reval = 1;
             }
         }
     }
@@ -521,10 +595,11 @@ int FuncDefCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
                 founded->type = CopyType(entry->type);
             }
                 */
+            reval = 2;
         }
         if(CmpArgu(entry->attr->argu, founded->attr->argu) != 0){
             memset(msg, 0, sizeof(msg));
-            snprintf(msg, sizeof(msg), "Function argument different from declare");
+            snprintf(msg, sizeof(msg), "Function argument mismatch");
             ErrorTablePush(errtbl, msg);
                 /*
             if(strcmp(founded->kind, "function") == 0){
@@ -534,8 +609,77 @@ int FuncDefCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
                 */
             reval = 2;
         }
+        if(founded->decl != 0){
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "Redefinition of '%s'", founded->name);
+            ErrorTablePush(errtbl, msg);
+            reval = 2;
+        }
     }
     return reval;
+}
+   
+void ReturnStatementCheck(struct ErrorTable* errtbl, struct Entry* entry, int* return_s){
+    if(errtbl==NULL || entry==NULL)
+        return;
+    if(*return_s != 1 && strcmp(entry->type->type, "void")!=0){
+        char msg[1024];
+        memset(msg, 0, sizeof(msg));
+        snprintf(msg, sizeof(msg), "The last statement must be a return statement");
+        ErrorTablePush(errtbl, msg);
+    }
+    *return_s = 0;
+}
+
+void ReturnTypeCheck(struct ErrorTable* errtbl, struct Entry* entry, struct Value* value){
+    if(errtbl==NULL || entry==NULL || value==NULL)
+        return;
+    
+    char msg[1024];
+    if(value->type->array != NULL){
+        memset(msg, 0, sizeof(msg));
+        snprintf(msg, sizeof(msg), "Return type must be scalar type");
+        ErrorTablePush(errtbl, msg);
+        return;
+    }
+
+    if(strcmp(entry->type->type, "double")==0){
+        if(strcmp(value->type->type, "double")!=0 && strcmp(value->type->type, "float")!=0 && strcmp(value->type->type, "int")!=0){
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "Return type coercion error: %s -> %s", value->type->type, entry->type->type);
+            ErrorTablePush(errtbl, msg);
+            return;
+        }
+    }
+    else if(strcmp(entry->type->type, "float")==0){
+        if(strcmp(value->type->type, "float")!=0 && strcmp(value->type->type, "int")!=0){
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "Return type coercion error: %s -> %s", value->type->type, entry->type->type);
+            ErrorTablePush(errtbl, msg);
+            return;
+        }
+    }
+    else if(strcmp(entry->type->type, value->type->type)!=0){
+        memset(msg, 0, sizeof(msg));
+        snprintf(msg, sizeof(msg), "Return type coercion error: %s -> %s", value->type->type, entry->type->type);
+        ErrorTablePush(errtbl, msg);
+        return;
+    }
+}
+
+void BoolexprCheck(struct ErrorTable* errtbl, struct Value* expr, const char* use){
+    if(errtbl==NULL || expr==NULL)
+        return;
+
+    if(expr->type->array!=NULL || strcmp(expr->type->type, "bool")!=0){
+        char msg[1024];
+        memset(msg, 0, sizeof(msg));
+        if(strcmp(use, "for")==0)
+            snprintf(msg, sizeof(msg), "Control expression in %s statement must be boolean type", use);
+        else
+            snprintf(msg, sizeof(msg), "Condition expression in %s statement must be boolean type", use);
+        ErrorTablePush(errtbl, msg);
+    }
 }
 
 struct Entry* BuildEntry(const char* name, const char* kind, int level, struct Type* type, struct Attribute* attr){
@@ -545,7 +689,7 @@ struct Entry* BuildEntry(const char* name, const char* kind, int level, struct T
     alice->level = level;
     alice->decl = 0;
     alice->type = type;
-    alice->attr = attr;
+    alice->attr = (strcmp(kind, "function")!=0 && attr==NULL)? BuildAttr(NULL, BuildDefaultValue(CopyType(type))) : attr;
     return alice;
 }
 
@@ -567,6 +711,9 @@ void AssignEntry(struct Entry* alice, const char* name, const char* kind, int le
     if(attr != NULL){
         DelAttr(alice->attr);
         alice->attr = attr;
+    }
+    else if(type != NULL && strcmp(kind, "function")!=0){
+        alice->attr = BuildAttr(NULL, BuildDefaultValue(CopyType(type)));
     }
 }
 
@@ -607,6 +754,26 @@ struct Type* CopyType(const struct Type* rhs){
     for(ptr=rhs->array; ptr!=NULL; ptr=ptr->next){
         AddDimen(&(alice->array), ptr->dimension);
     }    
+    return alice;
+}
+
+struct Type* ReduceTypeArray(struct Type* alice, int times, struct ErrorTable* errtbl){
+    if(alice == NULL)
+        return NULL;
+    int i;
+    for(i=0; i<times; i++){
+        if(alice->array == NULL){
+            char msg[1024];
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "Invalid array access");
+            ErrorTablePush(errtbl, msg);
+            return NULL;
+        }
+        struct Arraynode *RMarraynode = alice->array;
+        alice->array = alice->array->next;
+        free(RMarraynode);
+    }
+
     return alice;
 }
 
@@ -654,6 +821,15 @@ struct Attribute* CopyAttr(const struct Attribute* rhs){
     return alice;
 }
 
+struct Argu* BuildArgu(struct Type* type){
+    if(type == NULL)
+        return NULL;
+    struct Argu *alice = (struct Argu*)malloc(sizeof(struct Argu));
+    alice->type = type;
+    alice->next = NULL;
+    return alice;
+}
+
 struct Argu* CopyArgu(struct Argu* rhs){
     if(rhs == NULL)
         return NULL;
@@ -691,7 +867,7 @@ void AddArgu(struct Argu** alice, const char* name, struct Type* type){
 struct Value* BuildValue(struct Type* type_, const char* val){
     struct Value *alice = (struct Value*)malloc(sizeof(struct Value));
     alice->type = type_;
-    if(strcmp(alice->type->type, "float") == 0){
+    if(strcmp(alice->type->type, "float") == 0 || strcmp(alice->type->type, "double") == 0){
         alice->dval = atof(val);
     }
     else if(strcmp(alice->type->type, "int") == 0){
@@ -710,6 +886,23 @@ struct Value* BuildValue(struct Type* type_, const char* val){
     return alice;
 }
 
+struct Value* BuildDefaultValue(struct Type* type){
+    if(type == NULL)
+        return NULL;
+
+    struct Value *returnvalue = NULL;
+    if(strcmp(type->type, "float") == 0 || strcmp(type->type, "double") == 0)
+        returnvalue = BuildValue(type, "0.0");
+    else if(strcmp(type->type, "int") == 0)
+        returnvalue = BuildValue(type, "0");
+    else if(strcmp(type->type, "bool") == 0 || strcmp(type->type, "boolean") == 0)
+        returnvalue = BuildValue(type, "false");
+    else if(strcmp(type->type, "string") == 0)
+        returnvalue = BuildValue(type, "");
+
+    return returnvalue; 
+}
+
 struct Value* CopyValue(struct Value* rhs){
     if(rhs == NULL)
         return NULL;
@@ -722,12 +915,53 @@ struct Value* CopyValue(struct Value* rhs){
     return alice;
 }
 
-void AssignValue(struct Entry* alice, struct Value* val){
+void InitialValue(struct Entry* alice, struct Value* val){
     if(alice==NULL || val==NULL)
         return;
 
     DelAttr(alice->attr);
     alice->attr= BuildAttr(NULL, val);
+}
+
+void Assignment(struct Entry* entry, struct Value* value, struct ErrorTable* errtbl){
+    if(entry==NULL || value==NULL)
+        return;
+    char msg[1024];
+    memset(msg, 0, sizeof(msg));
+    if(strcmp(entry->kind, "function") == 0){
+        snprintf(msg, sizeof(msg), "Cannot assign to a function: '%s'", entry->name);
+        ErrorTablePush(errtbl, msg);
+        return;
+    }
+    if(strcmp(entry->kind, "constant") == 0){
+        snprintf(msg, sizeof(msg), "Cannot assign to a constant: '%s'", entry->name);
+        ErrorTablePush(errtbl, msg);
+        return;
+    }
+    if(entry->type->array!=NULL || value->type->array!=NULL){
+        snprintf(msg, sizeof(msg), "Invalid pointer assignment");
+        ErrorTablePush(errtbl, msg);
+        return;
+    }
+    if(strcmp(entry->type->type, "double")==0){
+        if(strcmp(value->type->type, "double")!=0 && strcmp(value->type->type, "float")!=0 && strcmp(value->type->type, "int")!=0){
+            snprintf(msg, sizeof(msg), "Invalid type coercion: %s -> %s", value->type->type, entry->type->type);
+            ErrorTablePush(errtbl, msg);
+            return;
+        }
+    }
+    else if(strcmp(entry->type->type, "float")==0){
+        if(strcmp(value->type->type, "float")!=0 && strcmp(value->type->type, "int")!=0){
+            snprintf(msg, sizeof(msg), "Invalid type coercion: %s -> %s", value->type->type, entry->type->type);
+            ErrorTablePush(errtbl, msg);
+            return;
+        }
+    }
+    else if(strcmp(entry->type->type, value->type->type)!=0){
+        snprintf(msg, sizeof(msg), "Invalid type coercion: %s -> %s", value->type->type, entry->type->type);
+        ErrorTablePush(errtbl, msg);
+        return;
+    }
 }
 
 struct ValueArray* BuildValueArray(){
@@ -774,6 +1008,8 @@ void AssignValueArray(struct Entry* entry, struct ValueArray* varray){
         return;
     if(entry->attr == NULL)
         entry->attr = BuildAttr(NULL, NULL);
+    DelValue(entry->attr->value);
+    entry->attr->value = NULL;
     DelValueArray(entry->attr->varray);
     entry->attr->varray = varray;
 }
@@ -782,6 +1018,32 @@ int CmpType(struct Type* t1, struct Type* t2){
     if(t1 == NULL || t2 == NULL)
         return -1;
     if(strcmp(t1->type, t2->type) != 0)
+        return 1;
+
+    struct Arraynode *ptr1=t1->array, *ptr2=t2->array;
+    while(1){
+        if(ptr1 == NULL && ptr2 == NULL)
+            return 0;
+        if(ptr1 == NULL && ptr2 != NULL)
+            return 1;
+        if(ptr1 != NULL && ptr2 == NULL)
+            return 1;
+        if(ptr1->dimension != ptr2->dimension)
+            return 1;
+        ptr1=ptr1->next;
+        ptr2=ptr2->next;
+    }
+}
+
+int CmpTypeCall(struct Type* t1, struct Type* t2){
+    if(t1 == NULL || t2 == NULL)
+        return -1;
+    if(strcmp(t1->type, "double") == 0 && strcmp(t2->type, "double") != 0 && 
+       strcmp(t2->type, "float") != 0 && strcmp(t2->type, "int") != 0)
+        return 1;
+    if(strcmp(t1->type, "float") == 0 && strcmp(t2->type, "float") != 0 && strcmp(t2->type, "int") != 0)
+        return 1;
+    if(strcmp(t1->type, "double")!=0 && strcmp(t1->type, "float")!=0 && strcmp(t1->type, t2->type) != 0)
         return 1;
 
     struct Arraynode *ptr1=t1->array, *ptr2=t2->array;
@@ -808,10 +1070,30 @@ int CmpArgu(struct Argu* a1, struct Argu* a2){
             return 1;
         if(ptr1 != NULL && ptr2 == NULL)
             return 1;
-        if(strcmp(ptr1->name, ptr2->name) != 0)
-            return 1;
         if(CmpType(ptr1->type, ptr2->type) != 0)
             return 1;
+
+        ptr1=ptr1->next;
+        ptr2=ptr2->next;
+    }
+}
+
+int CmpArguCall(struct Argu* a1, struct Argu* a2){
+    struct Argu *ptr1=a1, *ptr2=a2;
+    while(1){
+        if(ptr1 == NULL && ptr2 == NULL){
+            return 0;
+        }
+        if(ptr1 == NULL && ptr2 != NULL){
+            return 1;
+        }    
+        if(ptr1 != NULL && ptr2 == NULL){
+            return 1;
+        }
+        if(CmpTypeCall(ptr1->type, ptr2->type) != 0){
+            return 1;
+        }
+        
         ptr1=ptr1->next;
         ptr2=ptr2->next;
     }
@@ -1192,7 +1474,7 @@ struct Value* Expr_mod(struct Value* v1, struct Value* v2, struct ErrorTable* er
     }
         
     if(strcmp(v1->type->type, "int")!=0 || strcmp(v1->type->type, "int")!=0){
-        snprintf(msg, sizeof(msg), "Invalid operation with '%'");
+        snprintf(msg, sizeof(msg), "Invalid operation with '%%'");
         ErrorTablePush(errtbl, msg);
         DelValue(v1);
         DelValue(v2);

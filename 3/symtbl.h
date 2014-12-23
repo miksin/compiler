@@ -69,7 +69,10 @@ void SymbolTablePush(struct SymbolTable*, struct SymbolTable*);
 void SymbolTablePushOne(struct SymbolTable*, struct Entry*);
 void SymbolTablePushArgu(struct SymbolTable*, struct Argu*);
 void SymbolTablePop(struct SymbolTable*);
+void SymbolTableCheckRemainFunction(struct SymbolTable*, struct ErrorTable*);
 struct Entry* SymbolTableFind(struct SymbolTable*, const char*);
+struct Entry* FindID(struct SymbolTable*, struct ErrorTable*, const char*);
+struct Value* CallFunction(struct SymbolTable*, struct ErrorTable*, const char*, struct Argu*);
 
 struct ErrorTable* ErrorTableBuild();
 void ErrorTablePrint(struct ErrorTable*);
@@ -78,6 +81,9 @@ int ValDeclCheck(struct SymbolTable*, struct Entry*, struct ErrorTable*);
 int ConstDeclCheck(struct SymbolTable*, struct Entry*, struct ErrorTable*);
 int FuncDeclCheck(struct SymbolTable*, struct Entry*, struct ErrorTable*);
 int FuncDefCheck(struct SymbolTable*, struct Entry*, struct ErrorTable*);
+void ReturnStatementCheck(struct ErrorTable*, struct Entry*, int*);
+void ReturnTypeCheck(struct ErrorTable*, struct Entry*, struct Value*);
+void BoolexprCheck(struct ErrorTable*, struct Value*, const char*);
 
 struct Entry* BuildEntry(const char*, const char*, int, struct Type*, struct Attribute*);
 void AssignEntry(struct Entry*, const char*, const char*, int, struct Type*, struct Attribute*);
@@ -86,6 +92,7 @@ struct Entry* ClearEntry(struct Entry*);
 
 struct Type* BuildType(const char*, struct Arraynode*);
 struct Type* CopyType(const struct Type*);
+struct Type* ReduceTypeArray(struct Type*, int, struct ErrorTable*);
 struct Arraynode* CopyArray(struct Arraynode*);
 void AddDimen(struct Arraynode**, int);
 
@@ -97,17 +104,19 @@ struct Argu* CopyArgu(struct Argu*);
 void AddArgu(struct Argu**, const char*, struct Type*);
 
 struct Value* BuildValue(struct Type*, const char*);
+struct Value* BuildDefaultValue(struct Type*);
 struct Value* CopyValue(struct Value*);
-void AssignValue(struct Entry*, struct Value*);
+void InitialValue(struct Entry*, struct Value*);
+void Assignment(struct Entry*, struct Value*, struct ErrorTable*);
 struct ValueArray* BuildValueArray();
 struct ValueArray* CopyValueArray(struct ValueArray*);
 void ValueArrayPush(struct ValueArray*, struct Value*);
 void AssignValueArray(struct Entry*, struct ValueArray*);
 
-int AssignValueCheck(struct Entry*, struct Value*);
-
 int CmpType(struct Type*, struct Type*);
+int CmpTypeCall(struct Type*, struct Type*);
 int CmpArgu(struct Argu*, struct Argu*);
+int CmpArguCall(struct Argu*, struct Argu*);
 
 void DelSymbolTable(struct SymbolTable*);
 void DelErrorTable(struct ErrorTable*);

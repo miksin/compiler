@@ -15,13 +15,18 @@ struct Entry *entry_buf;
 struct Type *type_buf;
 struct Arraynode *array_buf;
 struct Argu *argu_buf;
+struct Entry *now_func;
+int return_s;
+int inloop;
 
 %}
 
 %union {
     char *text;
+    int ival;
     struct Type *type;
     struct Entry *entry;
+    struct Argu *argu;
     struct Value *value;
     struct ValueArray *varray;
 }
@@ -29,9 +34,12 @@ struct Argu *argu_buf;
 %type <text> identifier
 %type <type> argu_type float_type bool_type
 %type <value> value bool_value const_value
-%type <value> expr init_expr var_init
+%type <value> expr var_init
+%type <value> a_function initial_expr
 %type <entry> function_decl
+%type <argu> func_argu function_call
 %type <varray> var_array_init more_expr;
+%type <ival> array
 
 %token SEMICOLON      /* ; */
 %token COMMA          /* , */
@@ -97,6 +105,8 @@ declaration_list :
         DelType(type_buf); 
         if(FuncDeclCheck(Alice, $2, Error_msg) == 0)
             SymbolTablePushOne(Alice, $2);
+        else
+            DelEntry($2);
       }
     | CONST type const_decl SEMICOLON { 
         DelType(type_buf); 
@@ -110,22 +120,29 @@ definition_list :
         if((n = FuncDefCheck(Alice, $2, Error_msg)) == 0){ 
             /* Need to push both func and argu */
             SymbolTablePushOne(Alice, $2);
-            SymbolTablePush(Alice, Alice_buf);
             (Alice->nowlevel)++;
             (Alice_buf->nowlevel)++;
             SymbolTablePushArgu(Alice, $2->attr->argu);
+            now_func = $2;
+            now_func->decl = 1;
         }
         else if(n == 1){  
             /* Need to push only argu */
+            struct Entry *founded = SymbolTableFind(Alice, $2->name);
             (Alice->nowlevel)++;
             (Alice_buf->nowlevel)++;
-            SymbolTablePushArgu(Alice, (SymbolTableFind(Alice, $2->name))->attr->argu);
+            SymbolTablePushArgu(Alice, $2->attr->argu);
+            now_func = founded;
+            now_func->decl = 1;
         }
         else {
             (Alice->nowlevel)++;
             (Alice_buf->nowlevel)++;
+            now_func = $2;
         }
       } statement LOBRACE {
+        ReturnStatementCheck(Error_msg, now_func, &return_s);
+        now_func = NULL;
         SymbolTablePrint(Alice);
         SymbolTablePop(Alice);
         SymbolTablePop(Alice_buf);
@@ -149,7 +166,7 @@ var_decl_member :
       }
     | identifier ASSIGN var_init {
         AssignEntry(entry_buf, $1, "variable", Alice->nowlevel, CopyType(type_buf), NULL);
-        AssignValue(entry_buf, $3);
+        InitialValue(entry_buf, $3);
       }
     | identifier decl_array {
         AssignEntry(entry_buf, $1, "variable", Alice->nowlevel, CopyType(type_buf), NULL);
@@ -169,6 +186,7 @@ var_init :
     ;
 var_array_init :
       UPBRACE more_expr LOBRACE { $$=$2; }
+    | UPBRACE LOBRACE { $$=NULL; }
     ;
 more_expr :
       expr {  
@@ -188,7 +206,7 @@ function_decl :
         ClearEntry(entry_buf);
       }
     | identifier UPPARE LOPARE { 
-        AssignEntry(entry_buf, $1, "function", Alice->nowlevel, CopyType(type_buf), NULL);
+        AssignEntry(entry_buf, $1, "function", Alice->nowlevel, CopyType(type_buf), BuildAttr(NULL, NULL));
         $$ = CopyEntry(entry_buf);
         ClearEntry(entry_buf);
       }
@@ -215,13 +233,13 @@ arguments :
 const_decl :
     | const_decl COMMA identifier ASSIGN const_value { 
         AssignEntry(entry_buf, $3, "constant", Alice->nowlevel, CopyType(type_buf), NULL);
-        AssignValue(entry_buf, $5);
+        InitialValue(entry_buf, $5);
         SymbolTablePushOne(Alice_buf, CopyEntry(entry_buf));
         ClearEntry(entry_buf);
       }
     | identifier ASSIGN const_value { 
         AssignEntry(entry_buf, $1, "constant", Alice->nowlevel, CopyType(type_buf), NULL);
-        AssignValue(entry_buf, $3);
+        InitialValue(entry_buf, $3);
         SymbolTablePushOne(Alice_buf, CopyEntry(entry_buf));
         ClearEntry(entry_buf);
       }
@@ -234,40 +252,132 @@ decl_array :
 
 statement :
       statement type var_decl SEMICOLON {
+        return_s = 0;
         DelType(type_buf); 
         SymbolTablePush(Alice, Alice_buf);
       }
     | statement CONST type const_decl SEMICOLON {
+        return_s = 0;
         DelType(type_buf); 
         SymbolTablePush(Alice, Alice_buf);
       }
-    | statement assignment SEMICOLON
-    | statement a_function SEMICOLON
-    | statement PRINT expr SEMICOLON
-    | statement READ identifier id_append SEMICOLON
-    | statement IF UPPARE expr LOPARE UPBRACE statement LOBRACE
-    | statement IF UPPARE expr LOPARE UPBRACE statement LOBRACE ELSE UPBRACE statement LOBRACE
-    | statement FOR UPPARE initial_expr SEMICOLON initial_expr SEMICOLON initial_expr LOPARE UPBRACE statement LOBRACE
-    | statement WHILE UPPARE expr LOPARE UPBRACE statement LOBRACE
-    | statement DO UPBRACE statement LOBRACE WHILE UPPARE expr LOPARE SEMICOLON
-    | statement RETURN expr SEMICOLON
-    | statement BREAK SEMICOLON
-    | statement CONTINUE SEMICOLON
-    | statement SEMICOLON
-    | statement UPBRACE statement LOBRACE
+    | statement assignment SEMICOLON { return_s = 0; }
+    | statement a_function SEMICOLON { return_s = 0; }
+    | statement PRINT expr SEMICOLON { 
+        return_s = 0; 
+        if($3!=NULL && $3->type->array!=NULL){
+            char msg[1024];
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "Variable references in print statement must be scalar type");
+            ErrorTablePush(Error_msg, msg);
+        }
+      }
+    | statement READ expr SEMICOLON  { 
+        return_s = 0; 
+        if($3!=NULL && $3->type->array!=NULL){
+            char msg[1024];
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "Variable references in read statement must be scalar type");
+            ErrorTablePush(Error_msg, msg);
+        }
+      }
+    | statement IF UPPARE expr LOPARE UPBRACE {
+            (Alice->nowlevel)++;
+            (Alice_buf->nowlevel)++;
+        } statement LOBRACE {
+            BoolexprCheck(Error_msg, $4, "if");
+            SymbolTablePrint(Alice);
+            SymbolTablePop(Alice);
+            SymbolTablePop(Alice_buf);
+        } else_statement { 
+        return_s = 0; 
+      }
+    | statement WHILE UPPARE expr LOPARE UPBRACE { 
+            inloop=1; 
+            (Alice->nowlevel)++;
+            (Alice_buf->nowlevel)++;
+        } statement LOBRACE { 
+        return_s = 0; 
+        inloop = 0;
+        BoolexprCheck(Error_msg, $4, "while");
+        SymbolTablePrint(Alice);
+        SymbolTablePop(Alice);
+        SymbolTablePop(Alice_buf);
+      }
+    | statement DO UPBRACE {  
+            inloop=1; 
+            (Alice->nowlevel)++;
+            (Alice_buf->nowlevel)++;
+        } statement LOBRACE WHILE UPPARE expr LOPARE SEMICOLON { 
+        return_s = 0; 
+        inloop = 0;
+        BoolexprCheck(Error_msg, $9, "while");
+        SymbolTablePrint(Alice);
+        SymbolTablePop(Alice);
+        SymbolTablePop(Alice_buf);
+      }
+    | statement FOR UPPARE initial_expr SEMICOLON initial_expr SEMICOLON initial_expr LOPARE UPBRACE { 
+            inloop=1; 
+            (Alice->nowlevel)++;
+            (Alice_buf->nowlevel)++;
+        } statement LOBRACE { 
+        return_s = 0;
+        inloop = 0;
+        BoolexprCheck(Error_msg, $6, "for");
+        SymbolTablePrint(Alice);
+        SymbolTablePop(Alice);
+        SymbolTablePop(Alice_buf);
+      }
+    | statement RETURN expr SEMICOLON { 
+        return_s = 1; 
+        ReturnTypeCheck(Error_msg, now_func, $3); 
+      }
+    | statement BREAK SEMICOLON { 
+        return_s = 0; 
+        if(inloop != 1){
+            char msg[1024];
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "'break' can only appear in loop statements");
+            ErrorTablePush(Error_msg, msg);
+        }
+      }
+    | statement CONTINUE SEMICOLON  { 
+        return_s = 0;
+        if(inloop != 1){
+            char msg[1024];
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "'continue' can only appear in loop statements");
+            ErrorTablePush(Error_msg, msg);
+        }
+      }
+    | statement SEMICOLON { return_s = 0; }
+    | statement UPBRACE {
+        (Alice->nowlevel)++;
+        (Alice_buf->nowlevel)++;
+      } statement LOBRACE { 
+        SymbolTablePrint(Alice);
+        SymbolTablePop(Alice);
+        SymbolTablePop(Alice_buf);
+        return_s = 0;
+      }
     |
     ;
 
-init_expr :
-      init_expr COMMA assignment
-    | init_expr COMMA expr
-    | assignment {}
-    | expr
+else_statement :
+      ELSE UPBRACE {
+        (Alice->nowlevel)++;
+        (Alice_buf->nowlevel)++;
+      } statement LOBRACE {
+        SymbolTablePrint(Alice);
+        SymbolTablePop(Alice);
+        SymbolTablePop(Alice_buf);
+      }
+    | { }
     ;
 
 initial_expr :
-      init_expr
-    |
+      expr { $$=$1; }
+    |      { $$=NULL; }
     ;
 
 expr :
@@ -318,37 +428,83 @@ expr :
         $$=Expr_ne($1, $3, Error_msg);
       }
     | value { $$=$1; }
-    | identifier id_append  { }
+    | identifier { 
+        struct Entry *entry = FindID(Alice, Error_msg, $1);
+        if(entry!=NULL)
+            if(strcmp(entry->kind, "constant") == 0){
+                $$ = entry->attr->value;
+            }
+            else {
+                $$ = BuildDefaultValue(CopyType(entry->type));
+            }
+        else
+            $$ = NULL;
+      }
+    | identifier array {
+        struct Entry *entry;
+        if((entry = CopyEntry(FindID(Alice, Error_msg, $1))) != NULL)
+            ReduceTypeArray(entry->type, $2, Error_msg);
+        $$ = (entry!=NULL)? BuildDefaultValue(CopyType(entry->type)) : NULL;
+      }
+    | a_function { $$=$1; }
     ;
 
 assignment :
-      identifier array ASSIGN var_init
-    | identifier ASSIGN var_init
-    ;
-
-id_append :
-      function_call
-    | array
-    |
+      identifier array ASSIGN expr {
+        struct Entry *entry = CopyEntry(FindID(Alice, Error_msg, $1));
+        if(entry != NULL)
+            ReduceTypeArray(entry->type, $2, Error_msg);
+        Assignment(entry, $4, Error_msg);
+        DelEntry(entry);
+      } 
+    | identifier ASSIGN expr {
+        Assignment(FindID(Alice, Error_msg, $1), $3, Error_msg);
+      }
     ;
 
 a_function :
-      identifier function_call
+      identifier function_call {
+        $$ = CallFunction(Alice, Error_msg, $1, $2);
+      }
     ;
 
 function_call :
-      UPPARE LOPARE
-    | UPPARE expr more_funct_argu LOPARE
+      UPPARE LOPARE { $$=NULL; }
+    | UPPARE func_argu LOPARE { $$=$2; }
     ;
 
-more_funct_argu :
-    
-    | more_funct_argu COMMA expr
+func_argu :
+      expr {
+        if($1 != NULL){
+            $$ = BuildArgu($1->type);
+        }
+      }
+    | func_argu COMMA expr {
+        if($3 != NULL){
+            $$->next = BuildArgu($3->type);
+        }
+      }
     ;
 
 array :
-      UPBRAC expr LOBRAC
-    | array UPBRAC expr LOBRAC
+      UPBRAC expr LOBRAC {
+        $$ = 1;
+        if($2!=NULL && ($2->type->array!=NULL || strcmp($2->type->type, "int")!=0)){
+            char msg[1024];
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "The index of array must be int type");
+            ErrorTablePush(Error_msg, msg);
+        }
+      }
+    | array UPBRAC expr LOBRAC {
+        $$+=1;
+        if($3!=NULL && ($3->type->array!=NULL || strcmp($3->type->type, "int")!=0)){
+            char msg[1024];
+            memset(msg, 0, sizeof(msg));
+            snprintf(msg, sizeof(msg), "The index of array must be int type");
+            ErrorTablePush(Error_msg, msg);
+        }
+      }
 
 type : 
       INT         { type_buf=BuildType($1, NULL); }
@@ -442,15 +598,26 @@ int  main( int argc, char **argv )
     Alice = SymbolTableBuild();
     Alice_buf = SymbolTableBuild();
     Error_msg = ErrorTableBuild();
-    entry_buf = BuildEntry("", "", 0, NULL, NULL);
+    entry_buf = (struct Entry*)malloc(sizeof(struct Entry));
     array_buf = NULL;
     DelArgu(&argu_buf);
+    now_func = NULL;
+    return_s = 0;
+    inloop = 0;
 
     yyin = fp;
     yyparse();
 
+    SymbolTableCheckRemainFunction(Alice, Error_msg);
     SymbolTablePrint(Alice);
     ErrorTablePrint(Error_msg);
+    if(Error_msg->size == 0){
+        fprintf( stdout, "\n" );
+        fprintf( stdout, "|-------------------------------------------|\n" );
+        fprintf( stdout, "| There is no syntactic and semantic error! |\n" );
+        fprintf( stdout, "|-------------------------------------------|\n" );
+    }
+
     /*
     fprintf( stdout, "\n" );
     fprintf( stdout, "|--------------------------------|\n" );
