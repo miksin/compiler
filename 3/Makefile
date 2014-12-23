@@ -13,6 +13,12 @@ clean:
 test:
 	./parser testfile
 
+makerun:
+	yacc -d -v parser.y
+	lex scanner.l
+	gcc -o parser lex.yy.c y.tab.c symtbl.c -ly -lfl
+	./parser testfile
+
 sync:
 	scp parser.y lmchen@140.113.89.3:~/CP/
 	scp scanner.l lmchen@140.113.89.3:~/CP/
