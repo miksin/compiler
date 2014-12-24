@@ -308,7 +308,7 @@ int ValDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
     
     if(strcmp(entry->type->type, "void") == 0){
         memset(msg, 0, sizeof(msg));
-        snprintf(msg, sizeof(msg), "Value type should not be 'void'", entry->name);
+        snprintf(msg, sizeof(msg), "Value type should not be 'void'");
         ErrorTablePush(errtbl, msg);
         reval = 1;
     }
@@ -509,7 +509,7 @@ int ConstDeclCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTab
     
     if(strcmp(entry->type->type, "void") == 0){
         memset(msg, 0, sizeof(msg));
-        snprintf(msg, sizeof(msg), "Value type should not be 'void'", entry->name);
+        snprintf(msg, sizeof(msg), "Value type should not be 'void'");
         ErrorTablePush(errtbl, msg);
         reval = 1;
     }
@@ -587,7 +587,7 @@ int FuncDefCheck(struct SymbolTable* tbl, struct Entry* entry, struct ErrorTable
         reval = 1;  /* 1: No need to push this function into symboltable */
         if(CmpType(entry->type, founded->type) != 0){
             memset(msg, 0, sizeof(msg));
-            snprintf(msg, sizeof(msg), "Function type different from declare");
+            snprintf(msg, sizeof(msg), "Function type different from declaration");
             ErrorTablePush(errtbl, msg);
                 /* 
             if(strcmp(founded->kind, "function") == 0){
