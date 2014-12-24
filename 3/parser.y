@@ -8,6 +8,8 @@ extern int linenum;             /* declared in lex.l */
 extern FILE *yyin;              /* declared by lex */
 extern char *yytext;            /* declared by lex */
 extern char buf[256];           /* declared in lex.l */
+extern int Opt_Statistic;       /* declared in lex.l */
+extern int Opt_Symbol;       /* declared in lex.l */
 struct SymbolTable *Alice;
 struct SymbolTable *Alice_buf;
 struct ErrorTable *Error_msg;
@@ -35,7 +37,7 @@ int inloop;
 %type <type> argu_type float_type bool_type
 %type <value> value bool_value const_value
 %type <value> expr var_init
-%type <value> a_function initial_expr
+%type <value> a_function initial_expr control_expr
 %type <entry> function_decl
 %type <argu> func_argu function_call
 %type <varray> var_array_init more_expr;
@@ -143,7 +145,7 @@ definition_list :
       } statement LOBRACE {
         ReturnStatementCheck(Error_msg, now_func, &return_s);
         now_func = NULL;
-        SymbolTablePrint(Alice);
+        if(Opt_Symbol) SymbolTablePrint(Alice);
         SymbolTablePop(Alice);
         SymbolTablePop(Alice_buf);
       }
@@ -286,7 +288,7 @@ statement :
             (Alice_buf->nowlevel)++;
         } statement LOBRACE {
             BoolexprCheck(Error_msg, $4, "if");
-            SymbolTablePrint(Alice);
+            if(Opt_Symbol) SymbolTablePrint(Alice);
             SymbolTablePop(Alice);
             SymbolTablePop(Alice_buf);
         } else_statement { 
@@ -300,7 +302,7 @@ statement :
         return_s = 0; 
         inloop = 0;
         BoolexprCheck(Error_msg, $4, "while");
-        SymbolTablePrint(Alice);
+        if(Opt_Symbol) SymbolTablePrint(Alice);
         SymbolTablePop(Alice);
         SymbolTablePop(Alice_buf);
       }
@@ -312,11 +314,11 @@ statement :
         return_s = 0; 
         inloop = 0;
         BoolexprCheck(Error_msg, $9, "while");
-        SymbolTablePrint(Alice);
+        if(Opt_Symbol) SymbolTablePrint(Alice);
         SymbolTablePop(Alice);
         SymbolTablePop(Alice_buf);
       }
-    | statement FOR UPPARE initial_expr SEMICOLON initial_expr SEMICOLON initial_expr LOPARE UPBRACE { 
+    | statement FOR UPPARE initial_expr SEMICOLON control_expr SEMICOLON initial_expr LOPARE UPBRACE { 
             inloop=1; 
             (Alice->nowlevel)++;
             (Alice_buf->nowlevel)++;
@@ -324,7 +326,7 @@ statement :
         return_s = 0;
         inloop = 0;
         BoolexprCheck(Error_msg, $6, "for");
-        SymbolTablePrint(Alice);
+        if(Opt_Symbol) SymbolTablePrint(Alice);
         SymbolTablePop(Alice);
         SymbolTablePop(Alice_buf);
       }
@@ -355,7 +357,7 @@ statement :
         (Alice->nowlevel)++;
         (Alice_buf->nowlevel)++;
       } statement LOBRACE { 
-        SymbolTablePrint(Alice);
+        if(Opt_Symbol) SymbolTablePrint(Alice);
         SymbolTablePop(Alice);
         SymbolTablePop(Alice_buf);
         return_s = 0;
@@ -368,7 +370,7 @@ else_statement :
         (Alice->nowlevel)++;
         (Alice_buf->nowlevel)++;
       } statement LOBRACE {
-        SymbolTablePrint(Alice);
+        if(Opt_Symbol) SymbolTablePrint(Alice);
         SymbolTablePop(Alice);
         SymbolTablePop(Alice_buf);
       }
@@ -376,6 +378,12 @@ else_statement :
     ;
 
 initial_expr :
+      expr { $$=$1; }
+    | assignment { $$=NULL; }
+    |      { $$=NULL; }
+    ;
+
+control_expr :
       expr { $$=$1; }
     |      { $$=NULL; }
     ;
@@ -609,7 +617,7 @@ int  main( int argc, char **argv )
     yyparse();
 
     SymbolTableCheckRemainFunction(Alice, Error_msg);
-    SymbolTablePrint(Alice);
+    if(Opt_Symbol) SymbolTablePrint(Alice);
     ErrorTablePrint(Error_msg);
     if(Error_msg->size == 0){
         fprintf( stdout, "\n" );
@@ -617,6 +625,10 @@ int  main( int argc, char **argv )
         fprintf( stdout, "| There is no syntactic and semantic error! |\n" );
         fprintf( stdout, "|-------------------------------------------|\n" );
     }
+    if (Opt_Statistic)
+        print();
+    rm();
+
 
     /*
     fprintf( stdout, "\n" );

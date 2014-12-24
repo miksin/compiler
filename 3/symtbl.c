@@ -1424,30 +1424,36 @@ struct Value* Expr_div(struct Value* v1, struct Value* v2, struct ErrorTable* er
         DelValue(v2);
         return NULL;
     }
-
+        
     if(strcmp(v1->type->type, "double")==0){
         if(strcmp(v2->type->type, "int") == 0){
-            v1->dval /= (double)v2->ival;
+            if(v2->ival != 0)
+                v1->dval /= (double)v2->ival;
         }
         else {
-            v1->dval /= v2->dval;
+            if(v2->dval != 0.0)
+                v1->dval /= v2->dval;
         }
     }
     else if(strcmp(v1->type->type, "float")==0){
         if(strcmp(v2->type->type, "int") == 0){
-            v1->dval /= (double)v2->ival;
+            if(v2->ival != 0)
+                v1->dval /= (double)v2->ival;
         }
         else {
-            v1->dval /= v2->dval;
+            if(v2->dval != 0.0)
+                v1->dval /= v2->dval;
             strcpy(v1->type->type, v2->type->type);
         }
     }
     else if(strcmp(v1->type->type, "int")==0){
         if(strcmp(v2->type->type, "int") == 0){
-            v1->ival /= v2->ival;
+            if(v2->ival != 0)
+                v1->ival /= v2->ival;
         }
         else {
-            v1->dval = (double)v1->ival / v2->dval;
+            if(v2->dval != 0.0)
+                v1->dval = (double)v1->ival / v2->dval;
             strcpy(v1->type->type, v2->type->type);
         }
     }
@@ -1481,7 +1487,8 @@ struct Value* Expr_mod(struct Value* v1, struct Value* v2, struct ErrorTable* er
         return NULL;
     }
     
-    v1->ival %= v2->ival;
+    if(v2->ival != 0)
+        v1->ival %= v2->ival;
     DelValue(v2);
 
     return v1;

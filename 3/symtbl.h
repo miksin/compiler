@@ -143,3 +143,6 @@ struct Value* Expr_le(struct Value*, struct Value*, struct ErrorTable*);
 struct Value* Expr_ge(struct Value*, struct Value*, struct ErrorTable*);
 struct Value* Expr_eq(struct Value*, struct Value*, struct ErrorTable*);
 struct Value* Expr_ne(struct Value*, struct Value*, struct ErrorTable*);
+
+void print();
+void rm();

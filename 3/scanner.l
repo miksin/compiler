@@ -8,9 +8,10 @@
 #define tokenString(t, s)   { LIST; if (Opt_Token) printf("<%s:%s>\n", t, s); }
 #define MAX_LINE_LENGTH 257
 #define MAX_ID_LENGTH 257
-int Opt_Source = 1;
-int Opt_Token = 1;
-int Opt_Statistic = 1;
+int Opt_Source = 0;
+int Opt_Token = 0;
+int Opt_Statistic = 0;
+int Opt_Symbol = 0;
 int Opt_Flag = 0;
 int Opt_Flag_change = 0;
 int linenum = 1;
@@ -226,7 +227,7 @@ space_n     [ \t\n]
     return ID;
 }
 
-<INITIAL>^#pragma{space}*(source|token|statistic){space}*(on|off) {
+<INITIAL>^#pragma{space}*(source|token|statistic|symbol){space}*(on|off) {
     LIST;
     if(strstr(yytext, "on") != NULL){
         if(strstr(yytext, "source") != NULL){
@@ -238,6 +239,9 @@ space_n     [ \t\n]
         else if(strstr(yytext, "statistic") != NULL){
             Opt_Statistic = 1;
         }
+        else if(strstr(yytext, "symbol") != NULL){
+            Opt_Symbol = 1;
+        }
     }
     else if(strstr(yytext, "off") != NULL){
         if(strstr(yytext, "source") != NULL){
@@ -248,6 +252,9 @@ space_n     [ \t\n]
         }
         else if(strstr(yytext, "statistic") != NULL){
             Opt_Statistic = 0;
+        }
+        else if(strstr(yytext, "symbol") != NULL){
+            Opt_Symbol = 1;
         }
     }
     BEGIN Pragma_f;
@@ -336,7 +343,7 @@ void InsertID(char* str){
 }
 
 void print(){
-    printf("frequencies of identifiers:\n");
+    printf("\nfrequencies of identifiers:\n");
     struct entry* p = Table_head;
     print_all(p);
 }
