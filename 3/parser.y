@@ -617,7 +617,7 @@ int  main( int argc, char **argv )
     yyparse();
 
     SymbolTableCheckRemainFunction(Alice, Error_msg);
-    if(Opt_Symbol) SymbolTablePrint(Alice);
+    if(Opt_Symbol == 1) SymbolTablePrint(Alice);
     ErrorTablePrint(Error_msg);
     if(Error_msg->size == 0){
         fprintf( stdout, "\n" );
