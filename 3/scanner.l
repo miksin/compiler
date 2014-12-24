@@ -254,7 +254,7 @@ space_n     [ \t\n]
             Opt_Statistic = 0;
         }
         else if(strstr(yytext, "symbol") != NULL){
-            Opt_Symbol = 1;
+            Opt_Symbol = 0;
         }
     }
     BEGIN Pragma_f;
