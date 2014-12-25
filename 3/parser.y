@@ -548,7 +548,7 @@ value :
     | INTEGER    { $$=BuildValue(BuildType("int", NULL), $1); }
     | FLOAT_NUM  { $$=BuildValue(BuildType("float", NULL), $1); }
     | ONESTRING  { $$=BuildValue(BuildType("string", NULL), $1); }
-    | SCIENTIFIC { $$=BuildValue(BuildType("float", NULL), $1); }
+    | SCIENTIFIC { $$=BuildValue(BuildType("double", NULL), $1); }
     ;
 
 const_value :
@@ -570,7 +570,7 @@ const_value :
     | MINUS SCIENTIFIC  { 
         char neg[20];
         snprintf(neg, sizeof(neg), "-%s", $2);
-        $$=BuildValue(BuildType("float", NULL), neg);
+        $$=BuildValue(BuildType("double", NULL), neg);
       }
 
 bool_value :
