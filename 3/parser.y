@@ -581,11 +581,11 @@ bool_value :
 %%
 int yyerror( char *msg )
 {
-    fprintf( stderr, "\n|--------------------------------------------------------------------------\n" );
-    fprintf( stderr, "| Error found in Line #%d: %s\n", linenum, buf );
-    fprintf( stderr, "|\n" );
-    fprintf( stderr, "| Unmatched token: %s\n", yytext );
-    fprintf( stderr, "|--------------------------------------------------------------------------\n" );
+    fprintf( stdout, "\n|--------------------------------------------------------------------------\n" );
+    fprintf( stdout, "| Error found in Line #%d: %s\n", linenum, buf );
+    fprintf( stdout, "|\n" );
+    fprintf( stdout, "| Unmatched token: %s\n", yytext );
+    fprintf( stdout, "|--------------------------------------------------------------------------\n" );
     exit(-1);
 }
 
