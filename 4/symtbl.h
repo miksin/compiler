@@ -21,6 +21,7 @@ struct Entry {
     char kind[12];
     int level;
     int decl;
+    int reg;    // for local variable
     struct Type *type;
     struct Attribute *attr;
 };

@@ -23,6 +23,7 @@ int return_s;
 int inloop;
 
 FILE *outfp;
+int seq;
 
 %}
 
@@ -121,6 +122,7 @@ declaration_list :
     ;
 definition_list :
       type function_decl UPBRACE { 
+        seq = 0;
         int n;
         DelType(type_buf);
         if((n = FuncDefCheck(Alice, $2, Error_msg)) == 0){ 
@@ -131,6 +133,7 @@ definition_list :
             SymbolTablePushArgu(Alice, $2->attr->argu);
             now_func = $2;
             now_func->decl = 1;
+            GenFunction($2);
         }
         else if(n == 1){  
             /* Need to push only argu */
@@ -140,11 +143,13 @@ definition_list :
             SymbolTablePushArgu(Alice, $2->attr->argu);
             now_func = founded;
             now_func->decl = 1;
+            GenFunction($2);
         }
         else {
             (Alice->nowlevel)++;
             (Alice_buf->nowlevel)++;
             now_func = $2;
+            GenFunction($2);
         }
       } statement LOBRACE {
         ReturnStatementCheck(Error_msg, now_func, &return_s);

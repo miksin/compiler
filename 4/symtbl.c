@@ -6,6 +6,7 @@
 
 extern int linenum;             /* declared in lex.l */
 extern struct ErrorTable *Error_msg; /* declared in parser.y */
+extern int seq;     /* declared in parser.y */
 
 struct SymbolTable* SymbolTableBuild(){
     struct SymbolTable *Alice = (struct SymbolTable*)malloc(sizeof(struct SymbolTable));
@@ -107,6 +108,7 @@ void SymbolTablePush(struct SymbolTable* Alice, struct SymbolTable *Bob){
     for(i=0; i<size; i++){
         if((strcmp(Bob->entryVector[i]->kind, "variable")==0 || strcmp(Bob->entryVector[i]->kind, "constant")==0) && ValDeclCheck(Alice, Bob->entryVector[i], Error_msg) != 1){
             SymbolTablePushOne(Alice, Bob->entryVector[i]);
+            GenVariableDecl(Bob->entryVector[i]);
         }
         else{
             DelEntry(Bob->entryVector[i]);
@@ -137,7 +139,9 @@ void SymbolTablePushArgu(struct SymbolTable* Alice, struct Argu* argu){
         return;
     struct Argu *ptr;
     for(ptr=argu; ptr!=NULL; ptr=ptr->next){
-        SymbolTablePushOne(Alice, BuildEntry(ptr->name, "parameter", Alice->nowlevel, CopyType(ptr->type), NULL));
+        struct Entry *argu_entry = BuildEntry(ptr->name, "parameter", Alice->nowlevel, CopyType(ptr->type), NULL);
+        SymbolTablePushOne(Alice, argu_entry);
+        argu_entry->reg = seq++;
     }
 }
 
