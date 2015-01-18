@@ -19,6 +19,8 @@ char buf[MAX_LINE_LENGTH];
 char str_buf[MAX_LINE_LENGTH];
 char e_ch[3];
 
+FILE *outfp;    /* declared from parser.y */
+
 struct entry{
      char*  id;
      int    freq;
@@ -268,6 +270,7 @@ space_n     [ \t\n]
     LIST;
     if (Opt_Source)
         printf("%d:%s\n", linenum, buf);
+    fprintf(outfp, "; Line #%d: %s\n", linenum, buf);
     ++linenum;
     buf[0] = '\0';
     BEGIN 0;
@@ -277,8 +280,10 @@ space_n     [ \t\n]
     LIST;
     if (Opt_Source)
         printf("%d:%s\n", linenum, buf);
+    fprintf(outfp, "; Line #%d: %s\n", linenum, buf);
     ++linenum;
     buf[0] = '\0';
+
 }
 
 . { // Unrecognized character

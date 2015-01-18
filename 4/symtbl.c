@@ -109,6 +109,7 @@ void SymbolTablePush(struct SymbolTable* Alice, struct SymbolTable *Bob){
         if((strcmp(Bob->entryVector[i]->kind, "variable")==0 || strcmp(Bob->entryVector[i]->kind, "constant")==0) && ValDeclCheck(Alice, Bob->entryVector[i], Error_msg) != 1){
             SymbolTablePushOne(Alice, Bob->entryVector[i]);
             GenVariableDecl(Bob->entryVector[i]);
+            GenAssignment(Bob->entryVector[i]);
         }
         else{
             DelEntry(Bob->entryVector[i]);
@@ -1248,7 +1249,7 @@ struct Value* Expr_plus(struct Value* v1, struct Value* v2, struct ErrorTable* e
             strcpy(v1->type->type, v2->type->type);
         }
     }
-    DelValue(v2);
+    //DelValue(v2);
 
     return v1;
 }
@@ -1304,7 +1305,7 @@ struct Value* Expr_minus(struct Value* v1, struct Value* v2, struct ErrorTable* 
             strcpy(v1->type->type, v2->type->type);
         }
     }
-    DelValue(v2);
+    //DelValue(v2);
 
     return v1;
 }
@@ -1359,7 +1360,7 @@ struct Value* Expr_mul(struct Value* v1, struct Value* v2, struct ErrorTable* er
             strcpy(v1->type->type, v2->type->type);
         }
     }
-    DelValue(v2);
+    //DelValue(v2);
 
     return v1;
 }
@@ -1422,7 +1423,7 @@ struct Value* Expr_div(struct Value* v1, struct Value* v2, struct ErrorTable* er
             strcpy(v1->type->type, v2->type->type);
         }
     }
-    DelValue(v2);
+    //DelValue(v2);
 
     return v1;
 }
@@ -1454,7 +1455,7 @@ struct Value* Expr_mod(struct Value* v1, struct Value* v2, struct ErrorTable* er
     
     if(v2->ival != 0)
         v1->ival %= v2->ival;
-    DelValue(v2);
+    //DelValue(v2);
 
     return v1;
 }
@@ -1485,7 +1486,7 @@ struct Value* Expr_and(struct Value* v1, struct Value* v2, struct ErrorTable* er
     }
     
     v1->ival = v1->ival & v2->ival;
-    DelValue(v2);
+    //DelValue(v2);
 
     return v1;
 }
@@ -1516,7 +1517,7 @@ struct Value* Expr_or(struct Value* v1, struct Value* v2, struct ErrorTable* err
     }
     
     v1->ival = v1->ival | v2->ival;
-    DelValue(v2);
+    //DelValue(v2);
 
     return v1;
 }
@@ -1575,7 +1576,7 @@ struct Value* Expr_lt(struct Value* v1, struct Value* v2, struct ErrorTable* err
                 v1->ival = 0;
         }
     }
-    DelValue(v2);
+    //DelValue(v2);
     strcpy(v1->type->type, "bool");
 
     return v1;
@@ -1635,7 +1636,7 @@ struct Value* Expr_gt(struct Value* v1, struct Value* v2, struct ErrorTable* err
                 v1->ival = 0;
         }
     }
-    DelValue(v2);
+    //DelValue(v2);
     strcpy(v1->type->type, "bool");
 
     return v1;
@@ -1694,7 +1695,7 @@ struct Value* Expr_le(struct Value* v1, struct Value* v2, struct ErrorTable* err
                 v1->ival = 0;
         }
     }
-    DelValue(v2);
+    //DelValue(v2);
     strcpy(v1->type->type, "bool");
 
     return v1;
@@ -1753,7 +1754,7 @@ struct Value* Expr_ge(struct Value* v1, struct Value* v2, struct ErrorTable* err
                 v1->ival = 0;
         }
     }
-    DelValue(v2);
+    //DelValue(v2);
     strcpy(v1->type->type, "bool");
 
     return v1;
@@ -1812,7 +1813,7 @@ struct Value* Expr_eq(struct Value* v1, struct Value* v2, struct ErrorTable* err
                 v1->ival = 0;
         }
     }
-    DelValue(v2);
+    //DelValue(v2);
     strcpy(v1->type->type, "bool");
 
     return v1;
@@ -1871,7 +1872,7 @@ struct Value* Expr_ne(struct Value* v1, struct Value* v2, struct ErrorTable* err
                 v1->ival = 0;
         }
     }
-    DelValue(v2);
+    //DelValue(v2);
     strcpy(v1->type->type, "bool");
 
     return v1;

@@ -24,6 +24,7 @@ int inloop;
 
 FILE *outfp;
 int seq;
+int exprLabel;
 
 %}
 
@@ -122,7 +123,6 @@ declaration_list :
     ;
 definition_list :
       type function_decl UPBRACE { 
-        seq = 0;
         int n;
         DelType(type_buf);
         if((n = FuncDefCheck(Alice, $2, Error_msg)) == 0){ 
@@ -157,6 +157,8 @@ definition_list :
         if(Opt_Symbol) SymbolTablePrint(Alice);
         SymbolTablePop(Alice);
         SymbolTablePop(Alice_buf);
+        Gen(1, "return");
+        Gen(2, ".end", "method");
       }
     ;
 
@@ -274,15 +276,19 @@ statement :
       }
     | statement assignment SEMICOLON { return_s = 0; }
     | statement a_function SEMICOLON { return_s = 0; }
-    | statement PRINT expr SEMICOLON { 
+    | statement PRINT { GenPrintStart(); } expr SEMICOLON { 
         return_s = 0; 
-        if($3!=NULL && $3->type->array!=NULL){
+        if($4!=NULL && $4->type->array!=NULL){
             char msg[1024];
             memset(msg, 0, sizeof(msg));
             snprintf(msg, sizeof(msg), "Variable references in print statement must be scalar type");
             ErrorTablePush(Error_msg, msg);
         }
+        else {
+            GenPrintEnd($4);
+        }
       }
+      /*
     | statement READ expr SEMICOLON  { 
         return_s = 0; 
         if($3!=NULL && $3->type->array!=NULL){
@@ -290,6 +296,16 @@ statement :
             memset(msg, 0, sizeof(msg));
             snprintf(msg, sizeof(msg), "Variable references in read statement must be scalar type");
             ErrorTablePush(Error_msg, msg);
+        }
+        else {
+        }
+      }
+      */
+    | statement READ identifier SEMICOLON  { 
+        return_s = 0; 
+        struct Entry *found = FindID(Alice, Error_msg, $3);
+        if(found != NULL){
+            GenRead(found);
         }
       }
     | statement IF UPPARE expr LOPARE UPBRACE {
@@ -401,59 +417,79 @@ expr :
       UPPARE expr LOPARE { $$=$2; }
     | MINUS expr %prec HIGH_P {
         $$=Expr_neg($2, Error_msg);
+        GenNegExpr($2, '-');
       }
     | EXCLAM expr { 
         $$=Expr_exclam($2, Error_msg);
+        GenNegExpr($2, '!');
       }
     | expr PLUS expr {
         $$=Expr_plus($1, $3, Error_msg);
+        GenArithExpr($1, '+', $3);
       }
     | expr MINUS expr {
         $$=Expr_minus($1, $3, Error_msg);
+        GenArithExpr($1, '-', $3);
       }
     | expr MUL expr {
         $$=Expr_mul($1, $3, Error_msg);
+        GenArithExpr($1, '*', $3);
       }
     | expr DIV expr {
         $$=Expr_div($1, $3, Error_msg);
+        GenArithExpr($1, '/', $3);
       }
     | expr MOD expr {
         $$=Expr_mod($1, $3, Error_msg);
+        GenArithExpr($1, '%', $3);
       }
     | expr ANDAND expr {
         $$=Expr_and($1, $3, Error_msg);
+        GenLogiExpr($1, '&', $3);
       }
     | expr OROR expr {
         $$=Expr_or($1, $3, Error_msg);
+        GenLogiExpr($1, '|', $3);
       }
     | expr LT expr {
         $$=Expr_lt($1, $3, Error_msg);
+        GenRelExpr($1, LessT, $3);
       }
     | expr GT expr {
         $$=Expr_gt($1, $3, Error_msg);
+        GenRelExpr($1, GreatT, $3);
       }
     | expr LE expr {
         $$=Expr_le($1, $3, Error_msg);
+        GenRelExpr($1, LessE, $3);
       }
     | expr GE expr {
         $$=Expr_ge($1, $3, Error_msg);
+        GenRelExpr($1, GreatE, $3);
       }
     | expr EQUAL expr {
         $$=Expr_eq($1, $3, Error_msg);
+        GenRelExpr($1, Equal, $3);
       }
     | expr NOTEQUAL expr {
         $$=Expr_ne($1, $3, Error_msg);
+        GenRelExpr($1, NEqual, $3);
       }
-    | value { $$=$1; }
+    | value { 
+        $$=$1; 
+        GenLoadVal($$);
+      }
     | identifier { 
         struct Entry *entry = FindID(Alice, Error_msg, $1);
-        if(entry!=NULL)
+        if(entry!=NULL){
             if(strcmp(entry->kind, "constant") == 0){
                 $$ = entry->attr->value;
             }
             else {
                 $$ = BuildDefaultValue(CopyType(entry->type));
             }
+            GenLoadValbyID(entry);
+        }
         else
             $$ = NULL;
       }
@@ -463,7 +499,10 @@ expr :
             ReduceTypeArray(entry->type, $2, Error_msg);
         $$ = (entry!=NULL)? BuildDefaultValue(CopyType(entry->type)) : NULL;
       }
-    | a_function { $$=$1; }
+    | a_function { 
+        $$=$1;
+        GenLoadVal($$);
+      }
     ;
 
 assignment :
@@ -475,7 +514,9 @@ assignment :
         DelEntry(entry);
       } 
     | identifier ASSIGN expr {
-        Assignment(FindID(Alice, Error_msg, $1), $3, Error_msg);
+        struct Entry *found = FindID(Alice, Error_msg, $1);
+        Assignment(found, $3, Error_msg);
+        GenAssignment(found);
       }
     ;
 
@@ -622,6 +663,7 @@ int  main( int argc, char **argv )
     now_func = NULL;
     return_s = 0;
     inloop = 0;
+    exprLabel = 0;
 
     yyin = fp;
     yyparse();
