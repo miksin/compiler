@@ -364,6 +364,7 @@ void GenNegExpr(void* e1, char op){
             snprintf(exprbuf, sizeof(exprbuf), "%sneg", optype);
             break;
         case '!':
+            fprintf(outfp, "iconst_1\n");
             snprintf(exprbuf, sizeof(exprbuf), "ixor");
             break;
     }
