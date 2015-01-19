@@ -14,29 +14,38 @@ extern struct SymbolTable *Alice;   /* declared in parser.y */
 
 static int stacksize = 0;
 static int stackcapacity = 0;
-static int *stack = NULL;
+static struct Label *stack = NULL;
 
-void StackPush(int num){
+void StackPush(int num, int type){
     if(stackcapacity == 0){
         stackcapacity = 2048;
-        stack = (int*)malloc(stackcapacity * sizeof(int));
+        stack = (struct Label*)malloc(stackcapacity * sizeof(struct Label));
     }
 
     if(stacksize == stackcapacity){
         stackcapacity *= 2;
-        int *old = stack;
-        stack = (int*)malloc(stackcapacity * sizeof(int));
-        memcpy(stack, old, stacksize * sizeof(int));
+        struct Label *old = stack;
+        stack = (struct Label*)malloc(stackcapacity * sizeof(struct Label));
+        memcpy(stack, old, stacksize * sizeof(struct Label));
     }
 
-    stack[stacksize++] = num;
+    stack[stacksize].num = num;
+    stack[stacksize].type = type;
+    stacksize++;
 }
 
-int StackTop(){
-    return (stacksize==0)? -1 : stack[stacksize-1];
+int StackTop(int type){
+    int i;
+    for(i=stacksize-1; i>=0; i--){
+        if(stack[i].type == type){
+            return stack[i].num;
+        }
+    }
+    return -1;
 }
+
 int StackPop(){
-    return (stacksize==0)? -1 : stack[--stacksize];
+    return (stacksize==0)? -1 : stack[--stacksize].num;
 }
 
 void Gen(int n, ...){
@@ -86,7 +95,8 @@ void GenVariableDecl(void* alice){
     } 
     else {
         entry->reg = seq++;
-        printf("reg: %s = %d\n", id, entry->reg);
+        if(strcmp(typename, "double") == 0)
+            seq++;
     }
 }
 
@@ -657,12 +667,12 @@ void GenFunctionCall(void* alice){
 
 void GenIfStart(){
     int GetLabel = exprLabel++;
-    StackPush(GetLabel);
+    StackPush(GetLabel, Cond);
     fprintf(outfp, "ifeq IFelse_%d\n", GetLabel);
 }
 
 void GenIfElse(){
-    int GetLabel = StackTop();
+    int GetLabel = StackTop(Cond);
     fprintf(outfp, "goto IFexit_%d\n", GetLabel);
     fprintf(outfp, "IFelse_%d:\n", GetLabel);
 }
@@ -670,4 +680,77 @@ void GenIfElse(){
 void GenIfExit(){
     int GetLabel = StackPop();
     fprintf(outfp, "IFexit_%d:\n", GetLabel);
+}
+
+void GenForBegin(){
+    int GetLabel = exprLabel++;
+    StackPush(GetLabel, Loop);
+    fprintf(outfp, "Loopbegin_%d:\n", GetLabel);
+}
+
+void GenForInc(){
+    int GetLabel = StackTop(Loop);
+    fprintf(outfp, "ifne Loopstart_%d\n", GetLabel);
+    fprintf(outfp, "goto Loopexit_%d\n", GetLabel);
+    fprintf(outfp, "Loopinc_%d:\n", GetLabel);
+}
+
+void GenForStart(){
+    int GetLabel = StackTop(Loop);
+    fprintf(outfp, "goto Loopbegin_%d\n", GetLabel);
+    fprintf(outfp, "Loopstart_%d:\n", GetLabel);
+}
+
+void GenForExit(){
+    int GetLabel = StackPop();
+    fprintf(outfp, "goto Loopinc_%d\n", GetLabel);
+    fprintf(outfp, "Loopexit_%d:\n", GetLabel);
+}
+
+void GenWhileBegin(){
+    int GetLabel = exprLabel++;
+    StackPush(GetLabel, Loop);
+    fprintf(outfp, "Loopbegin_%d:\n", GetLabel);
+    fprintf(outfp, "Loopinc_%d:\n", GetLabel);
+}
+
+void GenWhileStart(){
+    int GetLabel = StackTop(Loop);
+    fprintf(outfp, "ifne Loopstart_%d\n", GetLabel);
+    fprintf(outfp, "goto Loopexit_%d\n", GetLabel);
+    fprintf(outfp, "Loopstart_%d:\n", GetLabel);
+}
+
+void GenWhileExit(){
+    int GetLabel = StackPop();
+    fprintf(outfp, "goto Loopbegin_%d\n", GetLabel);
+    fprintf(outfp, "Loopexit_%d:\n", GetLabel);
+}
+
+void GenDoWhileStart(){
+    int GetLabel = exprLabel++;
+    StackPush(GetLabel, Loop);
+    fprintf(outfp, "Loopstart_%d:\n", GetLabel);
+}
+
+void GenDoWhileBegin(){
+    int GetLabel = StackTop(Loop);
+    fprintf(outfp, "Loopinc_%d:\n", GetLabel);
+}
+
+void GenDoWhileExit(){
+    int GetLabel = StackPop();
+    fprintf(outfp, "ifne Loopstart_%d\n", GetLabel);
+    fprintf(outfp, "goto Loopexit_%d\n", GetLabel);
+    fprintf(outfp, "Loopexit_%d:\n", GetLabel);
+}
+
+void GenBreak(){
+    int GetLabel = StackTop(Loop);
+    fprintf(outfp, "goto Loopexit_%d\n", GetLabel);
+}
+
+void GenContinue(){
+    int GetLabel = StackTop(Loop);
+    fprintf(outfp, "goto Loopinc_%d\n", GetLabel);
 }

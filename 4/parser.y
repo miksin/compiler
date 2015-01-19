@@ -327,41 +327,55 @@ statement :
             GenIfExit();
             return_s = 0; 
       }
-    | statement WHILE UPPARE expr LOPARE UPBRACE { 
+    | statement WHILE UPPARE {
+            GenWhileBegin();
+        } expr LOPARE UPBRACE { 
+            GenWhileStart();
             inloop=1; 
             (Alice->nowlevel)++;
             (Alice_buf->nowlevel)++;
         } statement LOBRACE { 
-        return_s = 0; 
-        inloop = 0;
-        BoolexprCheck(Error_msg, $4, "while");
-        if(Opt_Symbol) SymbolTablePrint(Alice);
-        SymbolTablePop(Alice);
-        SymbolTablePop(Alice_buf);
+            GenWhileExit();
+            return_s = 0; 
+            inloop = 0;
+            BoolexprCheck(Error_msg, $5, "while");
+            if(Opt_Symbol) SymbolTablePrint(Alice);
+            SymbolTablePop(Alice);
+            SymbolTablePop(Alice_buf);
       }
-    | statement DO UPBRACE {  
+    | statement DO UPBRACE { 
+            GenDoWhileStart();
             inloop=1; 
             (Alice->nowlevel)++;
             (Alice_buf->nowlevel)++;
-        } statement LOBRACE WHILE UPPARE expr LOPARE SEMICOLON { 
-        return_s = 0; 
-        inloop = 0;
-        BoolexprCheck(Error_msg, $9, "while");
-        if(Opt_Symbol) SymbolTablePrint(Alice);
-        SymbolTablePop(Alice);
-        SymbolTablePop(Alice_buf);
+        } statement LOBRACE WHILE UPPARE {
+            GenDoWhileBegin();
+        } expr LOPARE SEMICOLON { 
+            GenDoWhileExit();
+            return_s = 0; 
+            inloop = 0;
+            BoolexprCheck(Error_msg, $10, "while");
+            if(Opt_Symbol) SymbolTablePrint(Alice);
+            SymbolTablePop(Alice);
+            SymbolTablePop(Alice_buf);
       }
-    | statement FOR UPPARE initial_expr SEMICOLON control_expr SEMICOLON initial_expr LOPARE UPBRACE { 
+    | statement FOR UPPARE initial_expr SEMICOLON {
+            GenForBegin();
+        } control_expr SEMICOLON {
+            GenForInc();
+        } initial_expr LOPARE UPBRACE { 
+            GenForStart();
             inloop=1; 
             (Alice->nowlevel)++;
             (Alice_buf->nowlevel)++;
         } statement LOBRACE { 
-        return_s = 0;
-        inloop = 0;
-        BoolexprCheck(Error_msg, $6, "for");
-        if(Opt_Symbol) SymbolTablePrint(Alice);
-        SymbolTablePop(Alice);
-        SymbolTablePop(Alice_buf);
+            GenForExit();
+            return_s = 0;
+            inloop = 0;
+            BoolexprCheck(Error_msg, $7, "for"); 
+            if(Opt_Symbol) SymbolTablePrint(Alice);
+            SymbolTablePop(Alice);
+            SymbolTablePop(Alice_buf);
       }
     | statement RETURN expr SEMICOLON { 
         return_s = 1; 
@@ -376,6 +390,9 @@ statement :
             snprintf(msg, sizeof(msg), "'break' can only appear in loop statements");
             ErrorTablePush(Error_msg, msg);
         }
+        else {
+            GenBreak();
+        }
       }
     | statement CONTINUE SEMICOLON  { 
         return_s = 0;
@@ -384,6 +401,9 @@ statement :
             memset(msg, 0, sizeof(msg));
             snprintf(msg, sizeof(msg), "'continue' can only appear in loop statements");
             ErrorTablePush(Error_msg, msg);
+        }
+        else {
+            GenContinue();
         }
       }
     | statement SEMICOLON { return_s = 0; }

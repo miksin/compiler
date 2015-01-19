@@ -5,9 +5,16 @@
 #define Equal  5
 #define NEqual 6
 #define CoerReg 127
+#define Cond 0
+#define Loop 1
 
-void StackPush(int);
-int StackTop();
+struct Label {
+    int num;
+    int type;
+};
+
+void StackPush(int num, int type);
+int StackTop(int type);
 int StackPop();
 
 void Gen(int n, ...);
@@ -33,3 +40,19 @@ void GenFunctionCall(void*);        // void* -> Entry*
 void GenIfStart();
 void GenIfElse();
 void GenIfExit();
+
+void GenForBegin();
+void GenForInc();
+void GenForStart();
+void GenForExit();
+
+void GenWhileBegin();
+void GenWhileStart();
+void GenWhileExit();
+
+void GenDoWhileStart();
+void GenDoWhileBegin();
+void GenDoWhileExit();
+
+void GenBreak();
+void GenContinue();
