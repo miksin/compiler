@@ -108,8 +108,6 @@ void SymbolTablePush(struct SymbolTable* Alice, struct SymbolTable *Bob){
     for(i=0; i<size; i++){
         if((strcmp(Bob->entryVector[i]->kind, "variable")==0 || strcmp(Bob->entryVector[i]->kind, "constant")==0) && ValDeclCheck(Alice, Bob->entryVector[i], Error_msg) != 1){
             SymbolTablePushOne(Alice, Bob->entryVector[i]);
-            GenVariableDecl(Bob->entryVector[i]);
-            GenAssignment(Bob->entryVector[i]);
         }
         else{
             DelEntry(Bob->entryVector[i]);
@@ -141,8 +139,9 @@ void SymbolTablePushArgu(struct SymbolTable* Alice, struct Argu* argu){
     struct Argu *ptr;
     for(ptr=argu; ptr!=NULL; ptr=ptr->next){
         struct Entry *argu_entry = BuildEntry(ptr->name, "parameter", Alice->nowlevel, CopyType(ptr->type), NULL);
+        GenVariableDecl(argu_entry);
         SymbolTablePushOne(Alice, argu_entry);
-        argu_entry->reg = seq++;
+        //argu_entry->reg = seq++;
     }
 }
 
@@ -692,6 +691,8 @@ struct Entry* CopyEntry(const struct Entry* rhs){
     alice->level = rhs->level;
     alice->type = CopyType(rhs->type);
     alice->attr = CopyAttr(rhs->attr);
+    alice->decl = rhs->decl;
+    alice->reg = rhs->reg;
     return alice;   
 }
 

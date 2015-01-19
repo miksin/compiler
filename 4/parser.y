@@ -130,20 +130,20 @@ definition_list :
             SymbolTablePushOne(Alice, $2);
             (Alice->nowlevel)++;
             (Alice_buf->nowlevel)++;
+            GenFunction($2);
             SymbolTablePushArgu(Alice, $2->attr->argu);
             now_func = $2;
             now_func->decl = 1;
-            GenFunction($2);
         }
         else if(n == 1){  
             /* Need to push only argu */
             struct Entry *founded = SymbolTableFind(Alice, $2->name);
             (Alice->nowlevel)++;
             (Alice_buf->nowlevel)++;
+            GenFunction($2);
             SymbolTablePushArgu(Alice, $2->attr->argu);
             now_func = founded;
             now_func->decl = 1;
-            GenFunction($2);
         }
         else {
             (Alice->nowlevel)++;
@@ -176,10 +176,13 @@ var_decl :
 var_decl_member :
       identifier { 
         AssignEntry(entry_buf, $1, "variable", Alice->nowlevel, CopyType(type_buf), NULL);
+        GenVariableDecl(entry_buf);
       }
     | identifier ASSIGN var_init {
         AssignEntry(entry_buf, $1, "variable", Alice->nowlevel, CopyType(type_buf), NULL);
         InitialValue(entry_buf, $3);
+        GenVariableDecl(entry_buf);
+        GenAssignment(entry_buf, $3);
       }
     | identifier decl_array {
         AssignEntry(entry_buf, $1, "variable", Alice->nowlevel, CopyType(type_buf), NULL);
@@ -213,12 +216,14 @@ more_expr :
 
 function_decl :
       identifier UPPARE arguments LOPARE {
+        seq = (strcmp($1, "main") == 0)? 1 : 0;
         AssignEntry(entry_buf, $1, "function", Alice->nowlevel, CopyType(type_buf), BuildAttr(CopyArgu(argu_buf), NULL));
         DelArgu(&argu_buf);
         $$ = CopyEntry(entry_buf);
         ClearEntry(entry_buf);
       }
     | identifier UPPARE LOPARE { 
+        seq = (strcmp($1, "main") == 0)? 1 : 0;
         AssignEntry(entry_buf, $1, "function", Alice->nowlevel, CopyType(type_buf), BuildAttr(NULL, NULL));
         $$ = CopyEntry(entry_buf);
         ClearEntry(entry_buf);
@@ -416,64 +421,64 @@ control_expr :
 expr :
       UPPARE expr LOPARE { $$=$2; }
     | MINUS expr %prec HIGH_P {
-        $$=Expr_neg($2, Error_msg);
         GenNegExpr($2, '-');
+        $$=Expr_neg($2, Error_msg);
       }
     | EXCLAM expr { 
-        $$=Expr_exclam($2, Error_msg);
         GenNegExpr($2, '!');
+        $$=Expr_exclam($2, Error_msg);
       }
     | expr PLUS expr {
-        $$=Expr_plus($1, $3, Error_msg);
         GenArithExpr($1, '+', $3);
+        $$=Expr_plus($1, $3, Error_msg);
       }
     | expr MINUS expr {
-        $$=Expr_minus($1, $3, Error_msg);
         GenArithExpr($1, '-', $3);
+        $$=Expr_minus($1, $3, Error_msg);
       }
     | expr MUL expr {
-        $$=Expr_mul($1, $3, Error_msg);
         GenArithExpr($1, '*', $3);
+        $$=Expr_mul($1, $3, Error_msg);
       }
     | expr DIV expr {
-        $$=Expr_div($1, $3, Error_msg);
         GenArithExpr($1, '/', $3);
+        $$=Expr_div($1, $3, Error_msg);
       }
     | expr MOD expr {
-        $$=Expr_mod($1, $3, Error_msg);
         GenArithExpr($1, '%', $3);
+        $$=Expr_mod($1, $3, Error_msg);
       }
     | expr ANDAND expr {
-        $$=Expr_and($1, $3, Error_msg);
         GenLogiExpr($1, '&', $3);
+        $$=Expr_and($1, $3, Error_msg);
       }
     | expr OROR expr {
-        $$=Expr_or($1, $3, Error_msg);
         GenLogiExpr($1, '|', $3);
+        $$=Expr_or($1, $3, Error_msg);
       }
     | expr LT expr {
-        $$=Expr_lt($1, $3, Error_msg);
         GenRelExpr($1, LessT, $3);
+        $$=Expr_lt($1, $3, Error_msg);
       }
     | expr GT expr {
-        $$=Expr_gt($1, $3, Error_msg);
         GenRelExpr($1, GreatT, $3);
+        $$=Expr_gt($1, $3, Error_msg);
       }
     | expr LE expr {
-        $$=Expr_le($1, $3, Error_msg);
         GenRelExpr($1, LessE, $3);
+        $$=Expr_le($1, $3, Error_msg);
       }
     | expr GE expr {
-        $$=Expr_ge($1, $3, Error_msg);
         GenRelExpr($1, GreatE, $3);
+        $$=Expr_ge($1, $3, Error_msg);
       }
     | expr EQUAL expr {
-        $$=Expr_eq($1, $3, Error_msg);
         GenRelExpr($1, Equal, $3);
+        $$=Expr_eq($1, $3, Error_msg);
       }
     | expr NOTEQUAL expr {
-        $$=Expr_ne($1, $3, Error_msg);
         GenRelExpr($1, NEqual, $3);
+        $$=Expr_ne($1, $3, Error_msg);
       }
     | value { 
         $$=$1; 
@@ -516,7 +521,7 @@ assignment :
     | identifier ASSIGN expr {
         struct Entry *found = FindID(Alice, Error_msg, $1);
         Assignment(found, $3, Error_msg);
-        GenAssignment(found);
+        GenAssignment(found, $3);
       }
     ;
 

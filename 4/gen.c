@@ -59,6 +59,7 @@ void GenVariableDecl(void* alice){
     } 
     else {
         entry->reg = seq++;
+        printf("reg: %s = %d\n", id, entry->reg);
     }
 }
 
@@ -73,7 +74,6 @@ void GenFunction(void* alice){
     typedesc[1] = '\0';
     
     if(strcmp(id, "main") == 0){
-        seq = 1;
         fprintf(outfp, ".method public static main([Ljava/lang/String;)V\n");
         fprintf(outfp, ".limit stack 128\n");
         fprintf(outfp, ".limit locals 128\n");
@@ -84,7 +84,6 @@ void GenFunction(void* alice){
         fprintf(outfp, "putstatic alice/_sc Ljava/util/Scanner;\n");
         return;
     }
-    seq = 0;
     
     if(strcmp(typename, "int") == 0){
         typedesc[0] = 'I';
@@ -122,9 +121,9 @@ void GenFunction(void* alice){
     strcat(argulist, ")");
     strcat(argulist, typedesc);
 
-    Gen(4, ".method", "public", "static", argulist);
-    Gen(3, ".limit", "stack", "128");
-    Gen(3, ".limit", "locals", "128");
+    fprintf(outfp, ".method public static %s\n", argulist);
+    fprintf(outfp, ".limit stack 128\n");
+    fprintf(outfp, ".limit locals 128\n");
 }
 
 void GenLoadVal(void* alice){
@@ -149,7 +148,7 @@ void GenLoadVal(void* alice){
         snprintf(exprbuf, sizeof(exprbuf), "ldc \"%s\"", val->strV);
     }
 
-    Gen(1, exprbuf);
+    fprintf(outfp, "%s\n", exprbuf);
 }
 
 void GenLoadValbyID(void* alice){
@@ -206,7 +205,7 @@ void GenLoadValbyID(void* alice){
                 snprintf(exprbuf, sizeof(exprbuf), "fload %d", entry->reg);
             }
             else if(strcmp(typename, "double") == 0){
-                snprintf(exprbuf, sizeof(exprbuf), "fload %d", entry->reg);
+                snprintf(exprbuf, sizeof(exprbuf), "dload %d", entry->reg);
             }
             else if(strcmp(typename, "bool") == 0){ 
                 snprintf(exprbuf, sizeof(exprbuf), "iload %d", entry->reg);
@@ -214,7 +213,7 @@ void GenLoadValbyID(void* alice){
         }
     }
 
-    Gen(1, exprbuf);
+    fprintf(outfp, "%s\n", exprbuf);
 }
 
 void GenArithExpr(void* e1, char op, void* e2){
@@ -231,9 +230,33 @@ void GenArithExpr(void* e1, char op, void* e2){
 
     if(strcmp(t1, d)==0 || strcmp(t2, d)==0){
         optype[0] = 'd';
+        if(strcmp(t1, f) == 0){
+            fprintf(outfp, "dstore %d\n", CoerReg);
+            fprintf(outfp, "f2d\n");
+            fprintf(outfp, "dload %d\n", CoerReg);
+        }
+        else if(strcmp(t1, i) == 0){
+            fprintf(outfp, "dstore %d\n", CoerReg);
+            fprintf(outfp, "i2d\n");
+            fprintf(outfp, "dload %d\n", CoerReg);
+        }
+        else if(strcmp(t2, f) == 0){
+            fprintf(outfp, "f2d\n");
+        }
+        else if(strcmp(t2, i) == 0){
+            fprintf(outfp, "i2d\n");
+        }
     }
     else if(strcmp(t1, f)==0 || strcmp(t2, f)==0){
         optype[0] = 'f';
+        if(strcmp(t1, i) == 0){
+            fprintf(outfp, "fstore %d\n", CoerReg);
+            fprintf(outfp, "i2f\n");
+            fprintf(outfp, "fload %d\n", CoerReg);
+        }
+        else if(strcmp(t2, i) == 0){
+            fprintf(outfp, "i2f\n");
+        }
     }
     else {
         optype[0] = 'i';
@@ -257,7 +280,7 @@ void GenArithExpr(void* e1, char op, void* e2){
             break;
     }
 
-    Gen(1, exprbuf);
+    fprintf(outfp, "%s\n", exprbuf);
 } 
 
 void GenLogiExpr(void* e1, char op, void* e2){
@@ -274,7 +297,7 @@ void GenLogiExpr(void* e1, char op, void* e2){
             break;
     }
 
-    Gen(1, exprbuf);
+    fprintf(outfp, "%s\n", exprbuf);
 }
 
 void GenNegExpr(void* e1, char op){
@@ -308,7 +331,7 @@ void GenNegExpr(void* e1, char op){
             break;
     }
 
-    Gen(1, exprbuf);
+    fprintf(outfp, "%s\n", exprbuf);
 }
 
 void GenRelExpr(void* e1, int op, void* e2){
@@ -326,9 +349,33 @@ void GenRelExpr(void* e1, int op, void* e2){
 
     if(strcmp(t1, d)==0 || strcmp(t2, d)==0){
         optype[0] = 'd';
+        if(strcmp(t1, f) == 0){
+            fprintf(outfp, "dstore %d\n", CoerReg);
+            fprintf(outfp, "f2d\n");
+            fprintf(outfp, "dload %d\n", CoerReg);
+        }
+        else if(strcmp(t1, i) == 0){
+            fprintf(outfp, "dstore %d\n", CoerReg);
+            fprintf(outfp, "i2d\n");
+            fprintf(outfp, "dload %d\n", CoerReg);
+        }
+        else if(strcmp(t2, f) == 0){
+            fprintf(outfp, "f2d\n");
+        }
+        else if(strcmp(t2, i) == 0){
+            fprintf(outfp, "i2d\n");
+        }
     }
     else if(strcmp(t1, f)==0 || strcmp(t2, f)==0){
         optype[0] = 'f';
+        if(strcmp(t1, i) == 0){
+            fprintf(outfp, "fstore %d\n", CoerReg);
+            fprintf(outfp, "i2f\n");
+            fprintf(outfp, "fload %d\n", CoerReg);
+        }
+        else if(strcmp(t2, i) == 0){
+            fprintf(outfp, "i2f\n");
+        }
     }
     else {
         optype[0] = 'i';
@@ -366,10 +413,12 @@ void GenRelExpr(void* e1, int op, void* e2){
     fprintf(outfp, "expr_%d:\n", L2);
 }
 
-void GenAssignment(void* alice){
-    if(alice == NULL)   return;
+void GenAssignment(void* alice, void* bob){
+    if(alice == NULL || bob == NULL)   return;
     struct Entry *entry = (struct Entry*)alice;
+    struct Value *value = (struct Value*)bob;
     char *typename = entry->type->type;
+    char *t2 = value->type->type;
     char d[7] = "double";
     char f[7] = "float";
     char i[7] = "int";
@@ -380,9 +429,18 @@ void GenAssignment(void* alice){
     if(entry->level == 0){
         if(strcmp(typename, d) == 0){
             optype[0] = 'D';
+            if(strcmp(t2, f) == 0){
+                fprintf(outfp, "f2d\n");
+            }
+            else if(strcmp(t2, i) == 0){
+                fprintf(outfp, "i2d\n");
+            }
         }
         else if(strcmp(typename, f) == 0){
             optype[0] = 'F';
+            if(strcmp(t2, i) == 0){
+                fprintf(outfp, "i2d\n");
+            }
         }
         else if(strcmp(typename, i) == 0){
             optype[0] = 'I';
@@ -395,9 +453,18 @@ void GenAssignment(void* alice){
     else {
         if(strcmp(typename, d) == 0){
             optype[0] = 'd';
+            if(strcmp(t2, f) == 0){
+                fprintf(outfp, "f2d\n");
+            }
+            else if(strcmp(t2, i) == 0){
+                fprintf(outfp, "i2d\n");
+            }
         }
         else if(strcmp(typename, f) == 0){
             optype[0] = 'f';
+            if(strcmp(t2, i) == 0){
+                fprintf(outfp, "i2d\n");
+            }
         }
         else if(strcmp(typename, i) == 0){
             optype[0] = 'i';
