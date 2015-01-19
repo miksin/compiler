@@ -12,6 +12,33 @@ extern int seq;       /* declared in parser.y */
 extern int exprLabel; /* declared in parser.y */
 extern struct SymbolTable *Alice;   /* declared in parser.y */
 
+static int stacksize = 0;
+static int stackcapacity = 0;
+static int *stack = NULL;
+
+void StackPush(int num){
+    if(stackcapacity == 0){
+        stackcapacity = 2048;
+        stack = (int*)malloc(stackcapacity * sizeof(int));
+    }
+
+    if(stacksize == stackcapacity){
+        stackcapacity *= 2;
+        int *old = stack;
+        stack = (int*)malloc(stackcapacity * sizeof(int));
+        memcpy(stack, old, stacksize * sizeof(int));
+    }
+
+    stack[stacksize++] = num;
+}
+
+int StackTop(){
+    return (stacksize==0)? -1 : stack[stacksize-1];
+}
+int StackPop(){
+    return (stacksize==0)? -1 : stack[--stacksize];
+}
+
 void Gen(int n, ...){
     va_list ap;
     int i;
@@ -546,4 +573,101 @@ void GenRead(void* alice){
         fprintf(outfp, "putstatic alice/%s %s\n", entry->name, opt);
     else
         fprintf(outfp, "%sstore %d\n", opt, entry->reg);
+}
+
+void GenReturn(void* alice){
+    if(alice == NULL)   return;
+    struct Value *value = (struct Value*)alice;
+    char *typename = value->type->type;
+    char d[7] = "double";
+    char f[7] = "float";
+    char i[7] = "int";
+    char b[7] = "bool";
+    char opt[2];
+    opt[1] = '\0';
+
+    if(strcmp(typename, d) == 0){
+        opt[0] = 'd';
+    }
+    else if(strcmp(typename, f) == 0){
+        opt[0] = 'f';
+    }
+    else if(strcmp(typename, i) == 0){
+        opt[0] = 'i';
+    }
+    else if(strcmp(typename, b) == 0){
+        opt[0] = 'i';
+    }
+
+    fprintf(outfp, "%sreturn\n", opt);
+}
+
+void GenFunctionCall(void* alice){
+    if(alice == NULL)   return;
+    struct Entry *entry = (struct Entry*)alice;
+    struct Argu *argu; 
+    char *typename;
+    char d[7] = "double";
+    char f[7] = "float";
+    char i[7] = "int";
+    char b[7] = "bool";
+    char exprbuf[200];
+    memset(exprbuf, 0, sizeof(exprbuf));
+    char opt[2];
+    opt[1] = '\0';
+
+    snprintf(exprbuf, sizeof(exprbuf), "invokestatic alice/%s(", entry->name);
+    for(argu=entry->attr->argu; argu!=NULL; argu=argu->next){
+        typename = argu->type->type;
+
+        if(strcmp(typename, d) == 0){
+            opt[0] = 'D';
+        }
+        else if(strcmp(typename, f) == 0){
+            opt[0] = 'F';
+        }
+        else if(strcmp(typename, i) == 0){
+            opt[0] = 'I';
+        }
+        else if(strcmp(typename, b) == 0){
+            opt[0] = 'Z';
+        }
+
+        strcat(exprbuf, opt);
+    }
+    strcat(exprbuf, ")");
+    
+    typename = entry->type->type;
+    if(strcmp(typename, d) == 0){
+        opt[0] = 'D';
+    }
+    else if(strcmp(typename, f) == 0){
+        opt[0] = 'F';
+    }
+    else if(strcmp(typename, i) == 0){
+        opt[0] = 'I';
+    }
+    else if(strcmp(typename, b) == 0){
+        opt[0] = 'Z';
+    }
+    strcat(exprbuf, opt);
+
+    fprintf(outfp, "%s\n", exprbuf);
+}
+
+void GenIfStart(){
+    int GetLabel = exprLabel++;
+    StackPush(GetLabel);
+    fprintf(outfp, "ifeq IFelse_%d\n", GetLabel);
+}
+
+void GenIfElse(){
+    int GetLabel = StackTop();
+    fprintf(outfp, "goto IFexit_%d\n", GetLabel);
+    fprintf(outfp, "IFelse_%d:\n", GetLabel);
+}
+
+void GenIfExit(){
+    int GetLabel = StackPop();
+    fprintf(outfp, "IFexit_%d:\n", GetLabel);
 }

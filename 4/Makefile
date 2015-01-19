@@ -12,12 +12,15 @@ clean:
 
 test:
 	./parser testfile
+	cat alice.j
 
 makerun:
 	yacc -d -v parser.y
 	lex scanner.l
-	gcc -o parser lex.yy.c y.tab.c symtbl.c -ly -lfl
+	gcc -o parser lex.yy.c y.tab.c symtbl.c gen.c -ly -lfl
 	./parser testfile
+	jasmin alice.j
+	java alice
 
 sync:
 	scp parser.y lmchen@140.113.89.3:~/CP/

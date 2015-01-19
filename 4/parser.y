@@ -314,15 +314,18 @@ statement :
         }
       }
     | statement IF UPPARE expr LOPARE UPBRACE {
+            GenIfStart();
             (Alice->nowlevel)++;
             (Alice_buf->nowlevel)++;
         } statement LOBRACE {
+            GenIfElse();
             BoolexprCheck(Error_msg, $4, "if");
             if(Opt_Symbol) SymbolTablePrint(Alice);
             SymbolTablePop(Alice);
             SymbolTablePop(Alice_buf);
         } else_statement { 
-        return_s = 0; 
+            GenIfExit();
+            return_s = 0; 
       }
     | statement WHILE UPPARE expr LOPARE UPBRACE { 
             inloop=1; 
@@ -363,6 +366,7 @@ statement :
     | statement RETURN expr SEMICOLON { 
         return_s = 1; 
         ReturnTypeCheck(Error_msg, now_func, $3); 
+        GenReturn($3);
       }
     | statement BREAK SEMICOLON { 
         return_s = 0; 
@@ -506,7 +510,6 @@ expr :
       }
     | a_function { 
         $$=$1;
-        GenLoadVal($$);
       }
     ;
 
@@ -527,7 +530,9 @@ assignment :
 
 a_function :
       identifier function_call {
+        printf("A function!\n");
         $$ = CallFunction(Alice, Error_msg, $1, $2);
+        GenFunctionCall(FindID(Alice, Error_msg, $1));
       }
     ;
 

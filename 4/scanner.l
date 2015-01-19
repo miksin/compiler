@@ -268,9 +268,10 @@ space_n     [ \t\n]
 
 <Pragma_f>\n {
     LIST;
-    if (Opt_Source)
+    if (Opt_Source){
         printf("%d:%s\n", linenum, buf);
-    fprintf(outfp, "; Line #%d: %s\n", linenum, buf);
+        fprintf(outfp, "; Line #%d: %s\n", linenum, buf);
+    }
     ++linenum;
     buf[0] = '\0';
     BEGIN 0;
@@ -278,9 +279,10 @@ space_n     [ \t\n]
 
 \n {
     LIST;
-    if (Opt_Source)
+    if (Opt_Source){
         printf("%d:%s\n", linenum, buf);
-    fprintf(outfp, "; Line #%d: %s\n", linenum, buf);
+        fprintf(outfp, "; Line #%d: %s\n", linenum, buf);
+    }
     ++linenum;
     buf[0] = '\0';
 

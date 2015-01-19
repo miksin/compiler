@@ -6,6 +6,10 @@
 #define NEqual 6
 #define CoerReg 127
 
+void StackPush(int);
+int StackTop();
+int StackPop();
+
 void Gen(int n, ...);
 void GenTitle();
 
@@ -23,3 +27,9 @@ void GenAssignment(void* alice, void* bob);// void* -> Entry*  void* -> Value*
 void GenPrintStart();
 void GenPrintEnd(void *);       // void* -> Value*
 void GenRead(void*);            // void* -> Entry*
+void GenReturn(void*);            // void* -> Value*
+void GenFunctionCall(void*);        // void* -> Entry*
+
+void GenIfStart();
+void GenIfElse();
+void GenIfExit();
