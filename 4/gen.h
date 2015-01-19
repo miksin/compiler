@@ -36,6 +36,7 @@ void GenPrintEnd(void *);           // void* -> Value*
 void GenRead(void*);                // void* -> Entry*
 void GenReturn(void*, void *);      // void* -> Value*  void* -> Entry*
 void GenFunctionCall(void*);        // void* -> Entry*
+void GenArguCoercion(void*, void*); // void* -> Argu*
 
 void GenIfStart();
 void GenIfElse();

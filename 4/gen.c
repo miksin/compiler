@@ -595,7 +595,8 @@ void GenReturn(void* alice, void* bob){
     if(alice == NULL || bob==NULL)   return;
     struct Value *value = (struct Value*)alice;
     struct Entry *entry = (struct Entry*)bob;
-    char *typename = value->type->type;
+    char *typename = entry->type->type;
+    char *valuetype = value->type->type;
     char d[7] = "double";
     char f[7] = "float";
     char i[7] = "int";
@@ -608,9 +609,18 @@ void GenReturn(void* alice, void* bob){
     }
     else if(strcmp(typename, d) == 0){
         opt[0] = 'd';
+        if(strcmp(valuetype, f) == 0){
+            fprintf(outfp, "f2d\n");
+        }
+        else if(strcmp(valuetype, i) == 0){
+            fprintf(outfp, "i2d\n");
+        }
     }
     else if(strcmp(typename, f) == 0){
         opt[0] = 'f';
+        if(strcmp(valuetype, i) == 0){
+            fprintf(outfp, "i2d\n");
+        }
     }
     else if(strcmp(typename, i) == 0){
         opt[0] = 'i';
@@ -677,6 +687,37 @@ void GenFunctionCall(void* alice){
     strcat(exprbuf, opt);
 
     fprintf(outfp, "%s\n", exprbuf);
+}
+
+void GenArguCoercion(void* alice, void* bob){
+    if(alice==NULL || bob==NULL)    return;
+    struct Argu *argu = (struct Argu*)alice;
+    struct Value *value = (struct Value*)bob;
+    char *t1 = argu->type->type, *t2 = value->type->type;
+    char d[7] = "double";
+    char f[7] = "float";
+    char i[7] = "int";
+    char b[7] = "bool";
+    char exprbuf[10];
+    char optype[2];
+    optype[1] = '\0';
+    memset(exprbuf, 0, sizeof(exprbuf));
+
+    if(strcmp(t1, d)==0){
+        optype[0] = 'd';
+        if(strcmp(t2, f) == 0){
+            fprintf(outfp, "f2d\n");
+        }
+        else if(strcmp(t2, i) == 0){
+            fprintf(outfp, "i2d\n");
+        }
+    }
+    else if(strcmp(t1, f)==0){
+        optype[0] = 'f';
+        if(strcmp(t2, i) == 0){
+            fprintf(outfp, "i2f\n");
+        }
+    }
 }
 
 void GenIfStart(){

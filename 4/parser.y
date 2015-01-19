@@ -44,7 +44,7 @@ int exprLabel;
 %type <value> expr var_init
 %type <value> a_function initial_expr control_expr
 %type <entry> function_decl
-%type <argu> func_argu function_call
+%type <argu> func_argu 
 %type <varray> var_array_init more_expr;
 %type <ival> array
 
@@ -293,19 +293,6 @@ statement :
             GenPrintEnd($4);
         }
       }
-      /*
-    | statement READ expr SEMICOLON  { 
-        return_s = 0; 
-        if($3!=NULL && $3->type->array!=NULL){
-            char msg[1024];
-            memset(msg, 0, sizeof(msg));
-            snprintf(msg, sizeof(msg), "Variable references in read statement must be scalar type");
-            ErrorTablePush(Error_msg, msg);
-        }
-        else {
-        }
-      }
-      */
     | statement READ identifier SEMICOLON  { 
         return_s = 0; 
         struct Entry *found = FindID(Alice, Error_msg, $3);
@@ -547,7 +534,7 @@ assignment :
         GenAssignment(found, $3);
       }
     ;
-
+    /*
 a_function :
       identifier function_call {
         $$ = CallFunction(Alice, Error_msg, $1, $2);
@@ -572,7 +559,35 @@ func_argu :
         }
       }
     ;
+    */
+a_function :
+      identifier UPPARE {  
+        struct Entry *found = FindID(Alice, Error_msg, $1);
+        if(found!=NULL && found->attr!=NULL)
+            argu_buf = found->attr->argu;
+      } func_argu LOPARE {
+        $$ = CallFunction(Alice, Error_msg, $1, $4);
+        GenFunctionCall(FindID(Alice, Error_msg, $1));
+      }
+    ;
 
+func_argu :
+      expr {
+        if($1 != NULL){
+            $$ = BuildArgu($1->type);
+            GenArguCoercion(argu_buf, $1);
+            argu_buf = argu_buf->next;
+        }
+      }
+    | func_argu COMMA expr {
+        if($3 != NULL){
+            $$->next = BuildArgu($3->type);
+            GenArguCoercion(argu_buf, $3);
+            argu_buf = argu_buf->next;
+        }
+      }
+    | { $$ = NULL; }
+    ;
 array :
       UPBRAC expr LOBRAC {
         $$ = 1;
