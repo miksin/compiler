@@ -534,32 +534,6 @@ assignment :
         GenAssignment(found, $3);
       }
     ;
-    /*
-a_function :
-      identifier function_call {
-        $$ = CallFunction(Alice, Error_msg, $1, $2);
-        GenFunctionCall(FindID(Alice, Error_msg, $1));
-      }
-    ;
-
-function_call :
-      UPPARE LOPARE { $$=NULL; }
-    | UPPARE func_argu LOPARE { $$=$2; }
-    ;
-
-func_argu :
-      expr {
-        if($1 != NULL){
-            $$ = BuildArgu($1->type);
-        }
-      }
-    | func_argu COMMA expr {
-        if($3 != NULL){
-            $$->next = BuildArgu($3->type);
-        }
-      }
-    ;
-    */
 a_function :
       identifier UPPARE {  
         struct Entry *found = FindID(Alice, Error_msg, $1);

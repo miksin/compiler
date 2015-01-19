@@ -17,6 +17,10 @@ void StackPush(int num, int type);
 int StackTop(int type);
 int StackPop();
 
+void GlobalbufPush(char*);
+void GlobalbufWrite();
+void GlobalbufClear();
+
 void Gen(int n, ...);
 void GenTitle();
 

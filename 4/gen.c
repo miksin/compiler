@@ -15,6 +15,8 @@ extern struct SymbolTable *Alice;   /* declared in parser.y */
 static int stacksize = 0;
 static int stackcapacity = 0;
 static struct Label *stack = NULL;
+static int bufsize = 0;
+static char *globalbuf[2048];
 
 void StackPush(int num, int type){
     if(stackcapacity == 0){
@@ -46,6 +48,31 @@ int StackTop(int type){
 
 int StackPop(){
     return (stacksize==0)? -1 : stack[--stacksize].num;
+}
+
+void GlobalbufPush(char* instr){
+    globalbuf[bufsize++] = strdup(instr);
+}
+
+void GlobalbufWrite(){
+    int i;
+    for(i=0; i<bufsize; i++){
+        if(globalbuf[i]!=NULL){
+            fprintf(outfp, "%s\n", globalbuf[i]);
+            free(globalbuf[i]);
+        }
+    }
+    bufsize = 0;
+}
+
+void GlobalbufClear(){
+    int i;
+    for(i=0; i<bufsize; i++){
+        if(globalbuf[i]!=NULL){
+            free(globalbuf[i]);
+        }
+    }
+    bufsize = 0;
 }
 
 void Gen(int n, ...){
@@ -119,6 +146,7 @@ void GenFunction(void* alice){
         fprintf(outfp, "getstatic java/lang/System/in Ljava/io/InputStream;\n");
         fprintf(outfp, "invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V\n");
         fprintf(outfp, "putstatic alice/_sc Ljava/util/Scanner;\n");
+        GlobalbufWrite();
         return;
     }
     
@@ -161,6 +189,7 @@ void GenFunction(void* alice){
     fprintf(outfp, ".method public static %s\n", argulist);
     fprintf(outfp, ".limit stack 128\n");
     fprintf(outfp, ".limit locals 128\n");
+    GlobalbufWrite();
 }
 
 void GenLoadVal(void* alice){
@@ -185,7 +214,10 @@ void GenLoadVal(void* alice){
         snprintf(exprbuf, sizeof(exprbuf), "ldc \"%s\"", val->strV);
     }
 
-    fprintf(outfp, "%s\n", exprbuf);
+    if(Alice->nowlevel == 0)
+        GlobalbufPush(exprbuf);
+    else
+        fprintf(outfp, "%s\n", exprbuf);
 }
 
 void GenLoadValbyID(void* alice){
@@ -250,7 +282,10 @@ void GenLoadValbyID(void* alice){
         }
     }
 
-    fprintf(outfp, "%s\n", exprbuf);
+    if(Alice->nowlevel == 0)
+        GlobalbufPush(exprbuf);
+    else
+        fprintf(outfp, "%s\n", exprbuf);
 }
 
 void GenArithExpr(void* e1, char op, void* e2){
@@ -317,7 +352,10 @@ void GenArithExpr(void* e1, char op, void* e2){
             break;
     }
 
-    fprintf(outfp, "%s\n", exprbuf);
+    if(Alice->nowlevel == 0)
+        GlobalbufPush(exprbuf);
+    else
+        fprintf(outfp, "%s\n", exprbuf);
 } 
 
 void GenLogiExpr(void* e1, char op, void* e2){
@@ -334,7 +372,10 @@ void GenLogiExpr(void* e1, char op, void* e2){
             break;
     }
 
-    fprintf(outfp, "%s\n", exprbuf);
+    if(Alice->nowlevel == 0)
+        GlobalbufPush(exprbuf);
+    else
+        fprintf(outfp, "%s\n", exprbuf);
 }
 
 void GenNegExpr(void* e1, char op){
@@ -369,7 +410,10 @@ void GenNegExpr(void* e1, char op){
             break;
     }
 
-    fprintf(outfp, "%s\n", exprbuf);
+    if(Alice->nowlevel == 0)
+        GlobalbufPush(exprbuf);
+    else
+        fprintf(outfp, "%s\n", exprbuf);
 }
 
 void GenRelExpr(void* e1, int op, void* e2){
@@ -491,7 +535,14 @@ void GenAssignment(void* alice, void* bob){
         else if(strcmp(typename, b) == 0){
             optype[0] = 'Z';
         }
-        fprintf(outfp, "putstatic alice/%s %s\n", entry->name, optype);
+
+        if(Alice->nowlevel == 0){
+            char buffer[200];
+            snprintf(buffer, sizeof(buffer), "putstatic alice/%s %s\n", entry->name, optype);
+            GlobalbufPush(buffer);
+        }
+        else
+            fprintf(outfp, "putstatic alice/%s %s\n", entry->name, optype);
     }
     else {
         if(strcmp(typename, d) == 0){
