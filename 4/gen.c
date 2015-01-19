@@ -419,11 +419,11 @@ void GenRelExpr(void* e1, int op, void* e2){
         optype[0] = 'i';
     }
 
-    fprintf(outfp, "%ssub\n", optype);
     if(optype[0] != 'i'){
-        fprintf(outfp, "ldc 20.0\n");
-        fprintf(outfp, "%smul\n", optype);
-        fprintf(outfp, "%s2i\n", optype);
+        fprintf(outfp, "%scmpl\n", optype);
+    }
+    else {
+        fprintf(outfp, "%ssub\n", optype);
     }
     
     L1 = exprLabel++;
