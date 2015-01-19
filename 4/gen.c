@@ -170,7 +170,7 @@ void GenLoadVal(void* alice){
     char exprbuf[200];
 
     if(strcmp(typename, "int") == 0){
-        snprintf(exprbuf, sizeof(exprbuf), "sipush %d", val->ival);
+        snprintf(exprbuf, sizeof(exprbuf), "ldc %d", val->ival);
     }
     else if(strcmp(typename, "float") == 0){
         snprintf(exprbuf, sizeof(exprbuf), "ldc %lf", val->dval);
@@ -203,7 +203,7 @@ void GenLoadValbyID(void* alice){
 
     if(strcmp(kind, "constant") == 0){
         if(strcmp(typename, "int") == 0){
-            snprintf(exprbuf, sizeof(exprbuf), "sipush %d", val->ival);
+            snprintf(exprbuf, sizeof(exprbuf), "ldc %d", val->ival);
         }
         else if(strcmp(typename, "float") == 0){
             snprintf(exprbuf, sizeof(exprbuf), "ldc %lf", val->dval);
@@ -419,6 +419,11 @@ void GenRelExpr(void* e1, int op, void* e2){
     }
 
     fprintf(outfp, "%ssub\n", optype);
+    if(optype[0] != 'i'){
+        fprintf(outfp, "ldc 20.0\n");
+        fprintf(outfp, "%smul\n", optype);
+        fprintf(outfp, "%s2i\n", optype);
+    }
     
     L1 = exprLabel++;
     L2 = exprLabel++;
@@ -585,9 +590,10 @@ void GenRead(void* alice){
         fprintf(outfp, "%sstore %d\n", opt, entry->reg);
 }
 
-void GenReturn(void* alice){
-    if(alice == NULL)   return;
+void GenReturn(void* alice, void* bob){
+    if(alice == NULL || bob==NULL)   return;
     struct Value *value = (struct Value*)alice;
+    struct Entry *entry = (struct Entry*)bob;
     char *typename = value->type->type;
     char d[7] = "double";
     char f[7] = "float";
@@ -596,7 +602,10 @@ void GenReturn(void* alice){
     char opt[2];
     opt[1] = '\0';
 
-    if(strcmp(typename, d) == 0){
+    if(strcmp(entry->name, "main") == 0){
+        opt[0] = '\0';
+    }
+    else if(strcmp(typename, d) == 0){
         opt[0] = 'd';
     }
     else if(strcmp(typename, f) == 0){
@@ -621,6 +630,7 @@ void GenFunctionCall(void* alice){
     char f[7] = "float";
     char i[7] = "int";
     char b[7] = "bool";
+    char v[7] = "void";
     char exprbuf[200];
     memset(exprbuf, 0, sizeof(exprbuf));
     char opt[2];
@@ -659,6 +669,9 @@ void GenFunctionCall(void* alice){
     }
     else if(strcmp(typename, b) == 0){
         opt[0] = 'Z';
+    }
+    else if(strcmp(typename, v) == 0){
+        opt[0] = 'V';
     }
     strcat(exprbuf, opt);
 

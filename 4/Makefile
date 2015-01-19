@@ -11,8 +11,8 @@ clean:
 	rm -f parser
 
 test:
-	./parser testfile
-	cat alice.j
+	jasmin alice.j
+	java alice
 
 makerun:
 	yacc -d -v parser.y

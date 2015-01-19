@@ -32,9 +32,9 @@ void GenRelExpr(void* e1, int op, void* e2);
 
 void GenAssignment(void* alice, void* bob);// void* -> Entry*  void* -> Value*
 void GenPrintStart();
-void GenPrintEnd(void *);       // void* -> Value*
-void GenRead(void*);            // void* -> Entry*
-void GenReturn(void*);            // void* -> Value*
+void GenPrintEnd(void *);           // void* -> Value*
+void GenRead(void*);                // void* -> Entry*
+void GenReturn(void*, void *);      // void* -> Value*  void* -> Entry*
 void GenFunctionCall(void*);        // void* -> Entry*
 
 void GenIfStart();

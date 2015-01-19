@@ -380,7 +380,7 @@ statement :
     | statement RETURN expr SEMICOLON { 
         return_s = 1; 
         ReturnTypeCheck(Error_msg, now_func, $3); 
-        GenReturn($3);
+        GenReturn($3, now_func);
       }
     | statement BREAK SEMICOLON { 
         return_s = 0; 
@@ -550,7 +550,6 @@ assignment :
 
 a_function :
       identifier function_call {
-        printf("A function!\n");
         $$ = CallFunction(Alice, Error_msg, $1, $2);
         GenFunctionCall(FindID(Alice, Error_msg, $1));
       }
