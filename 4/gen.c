@@ -205,7 +205,7 @@ void GenLoadVal(void* alice){
         snprintf(exprbuf, sizeof(exprbuf), "ldc %lf", val->dval);
     }
     else if(strcmp(typename, "double") == 0){
-        snprintf(exprbuf, sizeof(exprbuf), "ldc %lf", val->dval);
+        snprintf(exprbuf, sizeof(exprbuf), "ldc2_w %lf", val->dval);
     }
     else if(strcmp(typename, "bool") == 0){ 
         snprintf(exprbuf, sizeof(exprbuf), "iconst_%d", val->ival);
@@ -241,7 +241,7 @@ void GenLoadValbyID(void* alice){
             snprintf(exprbuf, sizeof(exprbuf), "ldc %lf", val->dval);
         }
         else if(strcmp(typename, "double") == 0){
-            snprintf(exprbuf, sizeof(exprbuf), "ldc %lf", val->dval);
+            snprintf(exprbuf, sizeof(exprbuf), "ldc2_w %lf", val->dval);
         }
         else if(strcmp(typename, "bool") == 0){ 
             snprintf(exprbuf, sizeof(exprbuf), "iconst_%d", val->ival);
